@@ -5,6 +5,7 @@ namespace Persona\Livewire\Providers;
 use Illuminate\Support\ServiceProvider;
 use Livewire\Livewire;
 use Persona\Livewire\Http\Livewire\ContactManager;
+use Persona\Livewire\Http\Livewire\ProfileOverview;
 
 class PersonaLivewireServiceProvider extends ServiceProvider
 {
@@ -22,5 +23,6 @@ class PersonaLivewireServiceProvider extends ServiceProvider
         ], 'persona-livewire-views');
 
         Livewire::component('persona.contact-manager', ContactManager::class);
+        Livewire::component('persona.profile-overview', ProfileOverview::class);
     }
 }

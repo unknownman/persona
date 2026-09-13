@@ -4,6 +4,8 @@ namespace Persona\Blade\Providers;
 
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\ServiceProvider;
+use Persona\Blade\View\Components\AddressesList;
+use Persona\Blade\View\Components\ContactsList;
 use Persona\Blade\View\Components\ProfileForm;
 
 class PersonaBladeServiceProvider extends ServiceProvider
@@ -22,5 +24,7 @@ class PersonaBladeServiceProvider extends ServiceProvider
         ], 'persona-blade-views');
 
         Blade::component(ProfileForm::class, 'persona-profile-form');
+        Blade::component(ContactsList::class, 'persona-contacts-list');
+        Blade::component(AddressesList::class, 'persona-addresses-list');
     }
 }

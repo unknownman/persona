@@ -69,9 +69,7 @@ class ContactManager extends Component
     public function setAsPrimary(int|string $contactId): void
     {
         $personable = $this->personable();
-
-        /** @var Contact $contact */
-        $contact = $personable->contacts()->findOrFail($contactId);
+        $contact = $this->resolveContact($contactId);
 
         $this->personaManager->contacts()->makePrimary($personable, $contact);
 
@@ -81,13 +79,27 @@ class ContactManager extends Component
     public function deleteContact(int|string $contactId): void
     {
         $personable = $this->personable();
-
-        /** @var Contact $contact */
-        $contact = $personable->contacts()->findOrFail($contactId);
+        $contact = $this->resolveContact($contactId);
 
         $this->personaManager->contacts()->delete($personable, $contact);
 
         $this->message = 'Contact removed.';
+    }
+
+    /**
+     * Resolve a contact owned by this component's personable scope directly
+     * through the Contact model.
+     *
+     * The query is scoped on the morph pair (personable_type / personable_id)
+     * instead of `$personable->contacts()`, so the host model does NOT need to
+     * use the HasPersona trait or define any relation methods for this to work.
+     */
+    protected function resolveContact(int|string $contactId): Contact
+    {
+        return Contact::query()
+            ->where('personable_type', $this->personableType)
+            ->where('personable_id', $this->personableId)
+            ->findOrFail($contactId);
     }
 
     public function getContactsProperty(): Collection

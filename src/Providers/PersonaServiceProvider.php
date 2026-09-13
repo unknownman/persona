@@ -3,6 +3,16 @@
 namespace Persona\Providers;
 
 use Illuminate\Support\ServiceProvider;
+use Persona\Contracts\CountryNormalizerContract;
+use Persona\Contracts\DocumentVerificationProvider;
+use Persona\Contracts\EmailNormalizerContract;
+use Persona\Contracts\HandleNormalizerContract;
+use Persona\Contracts\PhoneNormalizerContract;
+use Persona\Normalizers\DefaultCountryNormalizer;
+use Persona\Normalizers\DefaultEmailNormalizer;
+use Persona\Normalizers\DefaultHandleNormalizer;
+use Persona\Normalizers\DefaultPhoneNormalizer;
+use Persona\Services\NullDocumentVerificationProvider;
 use RuntimeException;
 
 class PersonaServiceProvider extends ServiceProvider
@@ -16,10 +26,11 @@ class PersonaServiceProvider extends ServiceProvider
     {
         $this->mergeConfigFrom(__DIR__ . '/../../config/persona.php', 'persona');
 
-        // $this->app->singleton(
-        //     \Persona\Contracts\ContractsInterface::class,
-        //     \Persona\Managers\ConcreteManager::class
-        // );
+        $this->app->singleton(EmailNormalizerContract::class, DefaultEmailNormalizer::class);
+        $this->app->singleton(PhoneNormalizerContract::class, DefaultPhoneNormalizer::class);
+        $this->app->singleton(HandleNormalizerContract::class, DefaultHandleNormalizer::class);
+        $this->app->singleton(CountryNormalizerContract::class, DefaultCountryNormalizer::class);
+        $this->app->singleton(DocumentVerificationProvider::class, NullDocumentVerificationProvider::class);
     }
 
     /**

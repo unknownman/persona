@@ -1,0 +1,54 @@
+<?php
+
+namespace Persona\Rules;
+
+use Closure;
+use Illuminate\Contracts\Validation\ValidationRule;
+use Illuminate\Database\Eloquent\Model;
+use Persona\Models\Contact;
+use RuntimeException;
+
+class PersonaUniqueContactValue implements ValidationRule
+{
+    /**
+     * Create a new rule instance.
+     *
+     * @param  string  $type  The contact type, e.g. 'email' or 'phone'.
+     * @param  int|string|null  $ignorePersonableId  Optionally ignore an owner
+     *                                               (e.g. the current model)
+     *                                               during uniqueness checks.
+     */
+    public function __construct(
+        protected string $type,
+        protected int|string|null $ignorePersonableId = null,
+    ) {}
+
+    public function validate(string $attribute, mixed $value, Closure $fail): void
+    {
+        if (! is_string($value) || trim($value) === '') {
+            return;
+        }
+
+        $hashKey = config('persona.hash_key');
+
+        if (is_null($hashKey) || $hashKey === '') {
+            throw new RuntimeException(
+                'PERSONA_HASH_KEY is missing or empty. Please generate a unique key and set it in your .env file to secure sensitive Persona hashes.'
+            );
+        }
+
+        $hash = hash_hmac('sha256', $value, $hashKey);
+
+        $query = Contact::query()
+            ->where('type', $this->type)
+            ->where('value_hash', $hash);
+
+        if ($this->ignorePersonableId !== null) {
+            $query->where('personable_id', '!=', $this->ignorePersonableId);
+        }
+
+        if ($query->exists()) {
+            $fail('The contact value is already taken.');
+        }
+    }
+}

@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/Logo/logo.svg" alt="Persona" width="320">
+</p>
+
 # Persona
 
 **Persona** is a headless Laravel package that provides a complete data layer for person-related data — profiles, social accounts, contacts, addresses, documents, physical attributes, legal details, and relationships — built on polymorphic relations.

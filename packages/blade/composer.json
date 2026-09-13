@@ -1,0 +1,30 @@
+{
+    "name": "laravel-persona/blade",
+    "version": "1.0.0",
+    "description": "Persona Blade - semantic, framework-agnostic Blade UI components for the headless Persona core.",
+    "keywords": ["persona", "laravel", "blade", "profile", "component"],
+    "license": "MIT",
+    "require": {
+        "php": "^8.2",
+        "laravel-persona/core": "^1.4",
+        "illuminate/support": "^11.0|^12.0|^13.0",
+        "illuminate/view": "^11.0|^12.0|^13.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Persona\\Blade\\": "src/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Persona\\Blade\\Providers\\PersonaBladeServiceProvider"
+            ]
+        }
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}

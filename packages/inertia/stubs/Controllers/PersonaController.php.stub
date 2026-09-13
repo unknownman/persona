@@ -1,0 +1,185 @@
+<?php
+
+namespace {{ namespace }};
+
+use App\Http\Controllers\Controller;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Inertia\Inertia;
+use Inertia\Response;
+use Persona\Api\Http\Resources\AddressResource;
+use Persona\Api\Http\Resources\ContactResource;
+use Persona\Api\Http\Resources\DocumentResource;
+use Persona\Api\Http\Resources\LegalDetailResource;
+use Persona\Api\Http\Resources\PhysicalAttributeResource;
+use Persona\Api\Http\Resources\ProfileResource;
+use Persona\Api\Http\Resources\RelationshipResource;
+use Persona\Api\Http\Resources\SocialAccountResource;
+use Persona\Persona;
+
+/**
+ * Publishable Inertia controller for the Persona ecosystem.
+ *
+ * Shows how to surface all Persona data as Inertia page props and handle
+ * mutations through standard Inertia form-submission redirects.
+ *
+ * Register routes pointing to your host application's auth + personable
+ * model, e.g.:
+ *
+ *     use App\Http\Controllers\PersonaController;
+ *     use Illuminate\Support\Facades\Route;
+ *
+ *     Route::middleware(['auth', 'verified'])->group(function () {
+ *         Route::get('/persona', [PersonaController::class, 'index']);
+ *         Route::post('/persona/contacts', [PersonaController::class, 'storeContact']);
+ *         Route::patch('/persona/contacts/{contact}/primary', [PersonaController::class, 'setPrimaryContact']);
+ *         Route::delete('/persona/contacts/{contact}', [PersonaController::class, 'destroyContact']);
+ *     });
+ *
+ * The controller assumes a route binding resolves the user's model to
+ * $personable (e.g. Route::get('/users/{user}/persona/…')).
+ */
+class PersonaController extends Controller
+{
+    /**
+     * Render the Persona page with all available resources as Inertia props.
+     *
+     * Your page component receives profile, contacts, addresses, documents,
+     * socialAccounts, physicalAttributes, legalDetails, and relationships
+     * as hydrated JSON resources.
+     */
+    public function index(Model $personable): Response
+    {
+        $persona = Persona::for($personable);
+
+        return Inertia::render('Persona/Index', [
+            'profile' => ProfileResource::make($personable->profile),
+            'contacts' => ContactResource::collection(
+                $personable->contacts()
+                    ->orderByDesc('is_primary')
+                    ->orderBy('created_at')
+                    ->get()
+            ),
+            'addresses' => AddressResource::collection(
+                $personable->addresses()
+                    ->orderByDesc('is_primary')
+                    ->orderBy('created_at')
+                    ->get()
+            ),
+            'documents' => DocumentResource::collection(
+                $personable->documents()
+                    ->whereNull('deleted_at')
+                    ->orderByDesc('created_at')
+                    ->get()
+            ),
+            'socialAccounts' => SocialAccountResource::collection(
+                $personable->socialAccounts()
+                    ->orderByDesc('is_primary')
+                    ->orderBy('created_at')
+                    ->get()
+            ),
+            'physicalAttributes' => PhysicalAttributeResource::make(
+                $personable->physicalAttributes()->first()
+            ),
+            'legalDetails' => LegalDetailResource::make(
+                $personable->legalDetails()->first()
+            ),
+            'relationships' => RelationshipResource::collection(
+                $personable->relationships()->get()
+            ),
+        ]);
+    }
+
+    public function storeContact(Model $personable, Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'type' => ['required', 'string'],
+            'value' => ['required', 'string', 'max:255'],
+            'is_primary' => ['sometimes', 'boolean'],
+            'is_emergency' => ['sometimes', 'boolean'],
+        ]);
+
+        Persona::for($personable)->addContact(
+            type: $validated['type'],
+            value: $validated['value'],
+            isPrimary: $validated['is_primary'] ?? false,
+            isEmergency: $validated['is_emergency'] ?? false,
+        );
+
+        return back()->with('success', 'Contact added.');
+    }
+
+    public function setPrimaryContact(Model $personable, Request $request, string $contact): RedirectResponse
+    {
+        $persona = Persona::for($personable);
+
+        $contactModel = $personable->contacts()->findOrFail($contact);
+
+        $persona->makeContactPrimary($contactModel);
+
+        return back()->with('success', 'Primary contact updated.');
+    }
+
+    public function destroyContact(Model $personable, Request $request, string $contact): RedirectResponse
+    {
+        $persona = Persona::for($personable);
+
+        $contactModel = $personable->contacts()->findOrFail($contact);
+
+        $persona->deleteContact($contactModel);
+
+        return back()->with('success', 'Contact removed.');
+    }
+
+    public function storeAddress(Model $personable, Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'type' => ['required', 'string', 'max:100'],
+            'line_1' => ['required', 'string', 'max:255'],
+            'line_2' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'city' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'state' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'country_code' => ['sometimes', 'nullable', 'string', 'max:2'],
+            'zip_code' => ['sometimes', 'nullable', 'string', 'max:20'],
+            'is_primary' => ['sometimes', 'boolean'],
+        ]);
+
+        $persona = Persona::for($personable);
+
+        $isPrimary = $validated['is_primary'] ?? false;
+        unset($validated['is_primary']);
+
+        $persona->addAddress(
+            type: $validated['type'],
+            line1: $validated['line_1'],
+            attributes: collect($validated)->only([
+                'line_2', 'city', 'state', 'country_code', 'zip_code',
+            ])->filter()->all(),
+            isPrimary: $isPrimary,
+        );
+
+        return back()->with('success', 'Address added.');
+    }
+
+    public function storeDocument(Model $personable, Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'type' => ['required', 'string'],
+            'number' => ['required', 'string', 'max:255'],
+            'country_code' => ['sometimes', 'nullable', 'string', 'max:2'],
+            'issued_at' => ['sometimes', 'nullable', 'date'],
+            'expires_at' => ['sometimes', 'nullable', 'date'],
+        ]);
+
+        $persona = Persona::for($personable);
+
+        $persona->addDocument(
+            type: $validated['type'],
+            number: $validated['number'],
+            metadata: collect($validated)->only(['country_code', 'issued_at', 'expires_at'])->filter()->all(),
+        );
+
+        return back()->with('success', 'Document added.');
+    }
+}

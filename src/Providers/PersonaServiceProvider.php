@@ -42,13 +42,11 @@ class PersonaServiceProvider extends ServiceProvider
     {
         $this->loadMigrationsFrom(__DIR__ . '/../../database/migrations');
 
+        $this->publishesMigrations(__DIR__ . '/../../database/migrations');
+
         $this->publishes([
             __DIR__ . '/../../config/persona.php' => config_path('persona.php'),
         ], 'persona-config');
-
-        $this->publishes([
-            __DIR__ . '/../../stubs' => database_path('persona/stubs'),
-        ], 'persona-stubs');
 
         $this->assertHashKeyIsConfigured();
     }

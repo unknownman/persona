@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/Logo/logo.svg" alt="Persona" width="320">
+  <img src="assets/Logo/logo.svg" alt="Persona" width="75%">
 </p>
 
 # Persona

@@ -11,7 +11,7 @@ return new class extends Migration
         Schema::create(config('persona.tables.relationships', 'persona_relationships'), function (Blueprint $table) {
             $table->id();
             $table->morphs('personable');
-            $table->morphs('related_personable', 'rel_personable');
+            $table->morphs('related_personable');
             $table->string('type');
             $table->timestamps();
 
@@ -19,8 +19,8 @@ return new class extends Migration
                 [
                     'personable_type',
                     'personable_id',
-                    'rel_personable_type',
-                    'rel_personable_id',
+                    'related_personable_type',
+                    'related_personable_id',
                     'type',
                 ],
                 'persona_relation_unique'

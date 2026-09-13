@@ -76,8 +76,8 @@ class PersonaManager
                             ->where('personable_id', $id);
                     })
                     ->orWhere(function ($query) use ($type, $id) {
-                        $query->where('rel_personable_type', $type)
-                            ->where('rel_personable_id', $id);
+                        $query->where('related_personable_type', $type)
+                            ->where('related_personable_id', $id);
                     })
                     ->delete();
             }

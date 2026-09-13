@@ -21,9 +21,9 @@ return new class extends Migration
             $table->timestamps();
             $table->softDeletes();
 
-            $table->unique(
+            $table->index(
                 ['personable_type', 'personable_id', 'type', 'country_code', 'number_hash'],
-                'persona_document_unique'
+                'persona_document_lookup_index'
             );
         });
     }

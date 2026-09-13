@@ -22,9 +22,9 @@ return new class extends Migration
             $table->softDeletes();
 
             $table->index('value_hash');
-            $table->unique(
+            $table->index(
                 ['personable_type', 'personable_id', 'type', 'value_hash'],
-                'persona_contact_unique'
+                'persona_contact_lookup_index'
             );
         });
     }

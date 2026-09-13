@@ -8,6 +8,10 @@ use Persona\Contracts\DocumentVerificationProvider;
 use Persona\Contracts\EmailNormalizerContract;
 use Persona\Contracts\HandleNormalizerContract;
 use Persona\Contracts\PhoneNormalizerContract;
+use Persona\Managers\ContactManager;
+use Persona\Managers\DocumentManager;
+use Persona\Managers\PersonaManager;
+use Persona\Managers\RelationshipManager;
 use Persona\Normalizers\DefaultCountryNormalizer;
 use Persona\Normalizers\DefaultEmailNormalizer;
 use Persona\Normalizers\DefaultHandleNormalizer;
@@ -31,6 +35,28 @@ class PersonaServiceProvider extends ServiceProvider
         $this->app->singleton(HandleNormalizerContract::class, DefaultHandleNormalizer::class);
         $this->app->singleton(CountryNormalizerContract::class, DefaultCountryNormalizer::class);
         $this->app->singleton(DocumentVerificationProvider::class, NullDocumentVerificationProvider::class);
+
+        $this->app->singleton(ContactManager::class, function ($app) {
+            return new ContactManager($app);
+        });
+
+        $this->app->singleton(DocumentManager::class, function () {
+            return new DocumentManager();
+        });
+
+        $this->app->singleton(RelationshipManager::class, function () {
+            return new RelationshipManager();
+        });
+
+        $this->app->singleton(PersonaManager::class, function ($app) {
+            return new PersonaManager(
+                $app->make(ContactManager::class),
+                $app->make(DocumentManager::class),
+                $app->make(RelationshipManager::class),
+            );
+        });
+
+        $this->app->alias(PersonaManager::class, 'persona');
     }
 
     /**

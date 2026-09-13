@@ -1,0 +1,10 @@
+/vendor/
+composer.lock
+node_modules/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+vite.config.js
+.idea/
+.vscode/
+.DS_Store

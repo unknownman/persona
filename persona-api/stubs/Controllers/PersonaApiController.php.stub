@@ -1,0 +1,148 @@
+<?php
+
+namespace {{ namespace }};
+
+use App\Http\Controllers\Controller;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
+use Persona\Api\Http\Resources\ContactResource;
+use Persona\Api\Http\Resources\ProfileResource;
+use Persona\Managers\PersonaManager;
+use Persona\Models\Contact;
+use Persona\Models\Profile;
+
+/**
+ * Publishable API controller for the Persona ecosystem.
+ *
+ * Copy this file to app/Http/Controllers and register your own routes
+ * (the package intentionally ships no routes or middleware). Example:
+ *
+ *     use App\Http\Controllers\PersonaApiController;
+ *
+ *     Route::get('/persona/profile', [PersonaApiController::class, 'profile'])
+ *         ->middleware('auth');
+ *
+ *     Route::get('/persona/contacts', [PersonaApiController::class, 'contacts'])
+ *         ->middleware('auth');
+ *
+ *     Route::post('/persona/contacts', [PersonaApiController::class, 'storeContact'])
+ *         ->middleware('auth');
+ *
+ *     Route::delete('/persona/contacts/{contact}', [PersonaApiController::class, 'destroyContact'])
+ *         ->middleware('auth');
+ *
+ *     Route::patch('/persona/contacts/{contact}/primary', [PersonaApiController::class, 'setPrimaryContact'])
+ *         ->middleware('auth');
+ */
+class PersonaApiController extends Controller
+{
+    public function __construct(private readonly PersonaManager $personaManager) {}
+
+    public function profile(Request $request): JsonResponse
+    {
+        $personable = $request->user();
+
+        $profile = Profile::query()
+            ->where('personable_type', $personable->getMorphClass())
+            ->where('personable_id', $personable->getKey())
+            ->first();
+
+        abort_unless($profile, 404, 'No Persona profile exists for this account.');
+
+        return ProfileResource::make($profile)->response();
+    }
+
+    public function contacts(Request $request): JsonResponse
+    {
+        $personable = $request->user();
+
+        return ContactResource::collection(
+            Contact::query()
+                ->where('personable_type', $personable->getMorphClass())
+                ->where('personable_id', $personable->getKey())
+                ->orderByDesc('is_primary')
+                ->orderBy('created_at')
+                ->get()
+        )->response();
+    }
+
+    public function storeContact(Request $request): JsonResponse
+    {
+        $personable = $request->user();
+
+        $validated = $request->validate([
+            'type' => ['required', 'string'],
+            'value' => ['required', 'string', 'max:255'],
+            'is_primary' => ['sometimes', 'boolean'],
+            'is_emergency' => ['sometimes', 'boolean'],
+        ]);
+
+        $contact = $this->personaManager
+            ->contacts()
+            ->add(
+                $personable,
+                $validated['type'],
+                $validated['value'],
+                isPrimary: $validated['is_primary'] ?? false,
+                isEmergency: $validated['is_emergency'] ?? false,
+            );
+
+        return ContactResource::make($contact)
+            ->response()
+            ->setStatusCode(201);
+    }
+
+    public function destroyContact(Request $request, Contact $contact): JsonResponse
+    {
+        $this->assertOwnedBy($request->user(), $contact);
+
+        if ($contact->is_primary) {
+            throw ValidationException::withMessages([
+                'contact' => 'The primary contact cannot be deleted. Assign a new primary first.',
+            ]);
+        }
+
+        $contact->delete();
+
+        return response()->json(['deleted' => true]);
+    }
+
+    public function setPrimaryContact(Request $request, Contact $contact): JsonResponse
+    {
+        $personable = $request->user();
+
+        $this->assertOwnedBy($personable, $contact);
+
+        Contact::query()
+            ->where('personable_type', $personable->getMorphClass())
+            ->where('personable_id', $personable->getKey())
+            ->where('type', $contact->type)
+            ->where('is_primary', true)
+            ->update(['is_primary' => false]);
+
+        $contact->update(['is_primary' => true]);
+
+        return ContactResource::make($contact->fresh())->response();
+    }
+
+    /**
+     * Ensure the route-model-bound contact belongs to the personable.
+     * Bind both via the route, e.g.:
+     *
+     *     ->whereBelongsTo... or explicit parameter binding
+     *
+     * Keep ownership checks in scope of your route parameters.
+     */
+    protected function assertOwnedBy(Model $personable, Contact $contact): void
+    {
+        throw_if(
+            $contact->personable_type !== $personable->getMorphClass()
+            || $contact->personable_id != $personable->getKey(),
+            ValidationException::withMessages([
+                'contact' => 'The contact does not belong to the given personable.',
+            ])
+        );
+    }
+}

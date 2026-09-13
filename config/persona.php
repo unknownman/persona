@@ -17,6 +17,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Encrypt Sensitive Data
+    |--------------------------------------------------------------------------
+    |
+    | Whether sensitive Persona data (contacts values, document numbers,
+    | tax identifiers, etc.) should be encrypted at rest using Laravel's
+    | Crypt. When disabled, the data layer stores plain text instead.
+    |
+    */
+
+    'encrypt_sensitive_data' => env('PERSONA_ENCRYPT_SENSITIVE_DATA', true),
+
+    /*
+    |--------------------------------------------------------------------------
     | Database Tables
     |--------------------------------------------------------------------------
     |

@@ -1,4 +1,4 @@
-{{-- Props: $account (Persona\Models\SocialAccount), $activities (list of activity arrays) --}}
+@props(['account' => null, 'activities' => []])
 <article class="persona-social-badge">
     <div class="persona-social-badge__main">
         <span class="persona-social-badge__platform">{{ ucfirst($account->platform) }}</span>

@@ -1,4 +1,4 @@
-{{-- Props: $profile (Persona\Models\Profile), $initials (string) --}}
+@props(['profile' => null, 'initials' => ''])
 <header class="persona-profile__header">
     <span class="persona-profile__avatar" aria-hidden="true">
         <span class="persona-profile__avatar-initials">{{ $initials }}</span>

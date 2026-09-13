@@ -1,6 +1,6 @@
 <?php
 
-namespace {{ namespace }};
+namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Database\Eloquent\Model;
@@ -16,7 +16,6 @@ use Persona\Api\Http\Resources\PhysicalAttributeResource;
 use Persona\Api\Http\Resources\ProfileResource;
 use Persona\Api\Http\Resources\RelationshipResource;
 use Persona\Api\Http\Resources\SocialAccountResource;
-use Persona\Managers\PersonaManager;
 use Persona\Models\Address;
 use Persona\Models\Contact;
 use Persona\Models\Document;
@@ -25,12 +24,17 @@ use Persona\Models\PhysicalAttribute;
 use Persona\Models\Profile;
 use Persona\Models\Relationship;
 use Persona\Models\SocialAccount;
+use Persona\Persona;
 
 /**
  * Publishable API controller for the Persona ecosystem.
  *
- * Covers all 9 Persona tables by injecting the root {@see PersonaManager}
- * (registered as a singleton) and delegating through its typed sub-managers.
+ * Covers all 9 Persona tables. Reads run through the Persona models directly
+ * (scoped by the authenticated user's morph pair), and every mutation is
+ * performed through the fluent `Persona::for($user)` entry point — the same
+ * scoped manager host applications use daily:
+ *
+ *     $contact = Persona::for($user)->addContact('email', 'ali@example.com');
  *
  * Copy this file to app/Http/Controllers and register your own routes
  * (the package intentionally ships no routes or middleware). Example:
@@ -43,7 +47,7 @@ use Persona\Models\SocialAccount;
  *
  *     // Contacts
  *     Route::get('/persona/contacts', [PersonaApiController::class, 'contacts'])->middleware('auth');
- *     Route::post('/persona/contacts', [PersonaApiController::class, 'storeContact'])->middleware('auth');
+ *     Route::post('/persona/contacts', [PersonaApiController::class, 'addContact'])->middleware('auth');
  *     Route::delete('/persona/contacts/{contact}', [PersonaApiController::class, 'destroyContact'])->middleware('auth');
  *     Route::patch('/persona/contacts/{contact}/primary', [PersonaApiController::class, 'setPrimaryContact'])->middleware('auth');
  *     Route::get('/persona/contacts/{contact}/verification', [PersonaApiController::class, 'sendContactVerification'])->middleware('auth');
@@ -86,13 +90,22 @@ use Persona\Models\SocialAccount;
  */
 class PersonaApiController extends Controller
 {
-    public function __construct(
-        protected readonly PersonaManager $persona,
-    ) {}
-
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
+
+    /**
+     * The polymorphic owner this request acts on.
+     *
+     * Resolved from `$request->user()`; hosts that need a different owner
+     * (e.g. route-bound resources or tenant contexts) can override this one
+     * call site instead of touching every controller method.
+     */
+    protected function personable(Request $request): Model
+    {
+        return $request->user()
+            ?? throw new \Illuminate\Auth\AuthenticationException('Unauthenticated.');
+    }
 
     /**
      * The morph pair that scopes all read queries.
@@ -185,7 +198,7 @@ class PersonaApiController extends Controller
         ]);
 
         $profile = $this->guarded(
-            fn () => $this->persona->profiles()->updateOrCreate($request->user(), $validated),
+            fn () => Persona::for($this->personable($request))->updateProfile($validated),
         );
 
         return ProfileResource::make($profile->fresh())->response();
@@ -206,7 +219,7 @@ class PersonaApiController extends Controller
         return ContactResource::collection($contacts)->response();
     }
 
-    public function storeContact(Request $request): JsonResponse
+    public function addContact(Request $request): JsonResponse
     {
         $validated = $request->validate([
             'type' => ['required', Rule::in('email', 'phone', 'handle')],
@@ -216,8 +229,7 @@ class PersonaApiController extends Controller
         ]);
 
         $contact = $this->guarded(
-            fn () => $this->persona->contacts()->add(
-                $request->user(),
+            fn () => Persona::for($this->personable($request))->addContact(
                 $validated['type'],
                 $validated['value'],
                 $validated['is_primary'] ?? false,
@@ -232,7 +244,7 @@ class PersonaApiController extends Controller
 
     public function destroyContact(Request $request, Contact $contact): JsonResponse
     {
-        $personable = $request->user();
+        $personable = $this->personable($request);
 
         $this->assertOwnedBy($personable, $contact);
 
@@ -242,36 +254,40 @@ class PersonaApiController extends Controller
             ]);
         }
 
-        $this->guarded(fn () => $this->persona->contacts()->delete($personable, $contact));
+        $this->guarded(fn () => Persona::for($personable)->deleteContact($contact));
 
         return response()->json(['deleted' => true]);
     }
 
     public function setPrimaryContact(Request $request, Contact $contact): JsonResponse
     {
-        $this->guarded(fn () => $this->persona->contacts()->makePrimary($request->user(), $contact));
+        $this->guarded(fn () => Persona::for($this->personable($request))->makeContactPrimary($contact));
 
         return ContactResource::make($contact->fresh())->response();
     }
 
     public function sendContactVerification(Request $request, Contact $contact): JsonResponse
     {
-        $this->assertOwnedBy($request->user(), $contact);
+        $personable = $this->personable($request);
 
-        $this->persona->contacts()->sendVerification($contact);
+        $this->assertOwnedBy($personable, $contact);
+
+        Persona::for($personable)->sendContactVerification($contact);
 
         return response()->json(['sent' => true]);
     }
 
     public function verifyContact(Request $request, Contact $contact): JsonResponse
     {
-        $this->assertOwnedBy($request->user(), $contact);
+        $personable = $this->personable($request);
+
+        $this->assertOwnedBy($personable, $contact);
 
         $validated = $request->validate([
             'otp' => ['required', 'string'],
         ]);
 
-        $verified = $this->persona->contacts()->verify($contact, $validated['otp']);
+        $verified = Persona::for($personable)->verifyContact($contact, $validated['otp']);
 
         if (! $verified) {
             throw ValidationException::withMessages([
@@ -314,8 +330,7 @@ class PersonaApiController extends Controller
         $attributes = collect($validated)->except('type', 'line_1', 'is_primary')->filter()->all();
 
         $address = $this->guarded(
-            fn () => $this->persona->addresses()->add(
-                $request->user(),
+            fn () => Persona::for($this->personable($request))->addAddress(
                 $validated['type'],
                 $validated['line_1'],
                 $attributes,
@@ -330,18 +345,18 @@ class PersonaApiController extends Controller
 
     public function destroyAddress(Request $request, Address $address): JsonResponse
     {
-        $personable = $request->user();
+        $personable = $this->personable($request);
 
         $this->assertOwnedBy($personable, $address);
 
-        $this->guarded(fn () => $this->persona->addresses()->delete($personable, $address));
+        $this->guarded(fn () => Persona::for($personable)->deleteAddress($address));
 
         return response()->json(['deleted' => true]);
     }
 
     public function setPrimaryAddress(Request $request, Address $address): JsonResponse
     {
-        $this->guarded(fn () => $this->persona->addresses()->makePrimary($request->user(), $address));
+        $this->guarded(fn () => Persona::for($this->personable($request))->makeAddressPrimary($address));
 
         return AddressResource::make($address->fresh())->response();
     }
@@ -373,8 +388,7 @@ class PersonaApiController extends Controller
         ]);
 
         $account = $this->guarded(
-            fn () => $this->persona->socialAccounts()->add(
-                $request->user(),
+            fn () => Persona::for($this->personable($request))->addSocialAccount(
                 $validated['platform'],
                 $validated['username'],
                 $validated['url'] ?? null,
@@ -389,11 +403,11 @@ class PersonaApiController extends Controller
 
     public function destroySocialAccount(Request $request, SocialAccount $socialAccount): JsonResponse
     {
-        $personable = $request->user();
+        $personable = $this->personable($request);
 
         $this->assertOwnedBy($personable, $socialAccount);
 
-        $this->guarded(fn () => $this->persona->socialAccounts()->delete($personable, $socialAccount));
+        $this->guarded(fn () => Persona::for($personable)->deleteSocialAccount($socialAccount));
 
         return response()->json(['deleted' => true]);
     }
@@ -401,7 +415,7 @@ class PersonaApiController extends Controller
     public function setPrimarySocialAccount(Request $request, SocialAccount $socialAccount): JsonResponse
     {
         $this->guarded(
-            fn () => $this->persona->socialAccounts()->makePrimary($request->user(), $socialAccount)
+            fn () => Persona::for($this->personable($request))->makeSocialAccountPrimary($socialAccount)
         );
 
         return SocialAccountResource::make($socialAccount->fresh())->response();
@@ -437,8 +451,7 @@ class PersonaApiController extends Controller
         $metadata = collect($validated)->except('type', 'number')->filter()->all();
 
         $document = $this->guarded(
-            fn () => $this->persona->documents()->add(
-                $request->user(),
+            fn () => Persona::for($this->personable($request))->addDocument(
                 $validated['type'],
                 $validated['number'],
                 $metadata,
@@ -452,18 +465,18 @@ class PersonaApiController extends Controller
 
     public function destroyDocument(Request $request, Document $document): JsonResponse
     {
-        $personable = $request->user();
+        $personable = $this->personable($request);
 
         $this->assertOwnedBy($personable, $document);
 
-        $this->guarded(fn () => $this->persona->documents()->delete($personable, $document));
+        $this->guarded(fn () => Persona::for($personable)->deleteDocument($document));
 
         return response()->json(['deleted' => true]);
     }
 
     public function attachDocumentFile(Request $request, Document $document): JsonResponse
     {
-        $personable = $request->user();
+        $personable = $this->personable($request);
 
         $this->assertOwnedBy($personable, $document);
 
@@ -481,7 +494,7 @@ class PersonaApiController extends Controller
         abort_unless($storedPath, 500, 'Failed to store uploaded file.');
 
         $this->guarded(
-            fn () => $this->persona->documents()->attachFile(
+            fn () => Persona::for($this->personable($request))->attachDocumentFile(
                 $document,
                 $storedPath,
                 $validated['disk'] ?? config('persona.file_disk', 'local'),
@@ -518,7 +531,7 @@ class PersonaApiController extends Controller
         ]);
 
         $attributes = $this->guarded(
-            fn () => $this->persona->physicalAttributes()->updateOrCreate($request->user(), $validated),
+            fn () => Persona::for($this->personable($request))->updatePhysicalAttributes($validated),
         );
 
         return PhysicalAttributeResource::make($attributes->fresh())->response();
@@ -548,7 +561,7 @@ class PersonaApiController extends Controller
         ]);
 
         $details = $this->guarded(
-            fn () => $this->persona->legalDetails()->updateOrCreate($request->user(), $validated),
+            fn () => Persona::for($this->personable($request))->updateLegalDetails($validated),
         );
 
         return LegalDetailResource::make($details->fresh())->response();
@@ -582,7 +595,7 @@ class PersonaApiController extends Controller
         $related = app($morphMap)->query()->findOrFail($validated['related_id']);
 
         $relationship = $this->guarded(
-            fn () => $this->persona->relationships()->link($request->user(), $related, $validated['type']),
+            fn () => Persona::for($this->personable($request))->linkTo($related, $validated['type']),
         );
 
         return RelationshipResource::make($relationship)
@@ -592,7 +605,7 @@ class PersonaApiController extends Controller
 
     public function destroyRelationship(Request $request, Relationship $relationship): JsonResponse
     {
-        $personable = $request->user();
+        $personable = $this->personable($request);
 
         $this->assertOwnedBy($personable, $relationship);
 
@@ -600,7 +613,7 @@ class PersonaApiController extends Controller
             ->query()
             ->findOrFail($relationship->related_personable_id);
 
-        $this->guarded(fn () => $this->persona->relationships()->unlink($personable, $targetModel, $relationship->type));
+        $this->guarded(fn () => Persona::for($personable)->unlinkFrom($targetModel, $relationship->type));
 
         return response()->json(['deleted' => true]);
     }

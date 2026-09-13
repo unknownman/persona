@@ -1,4 +1,4 @@
-{{-- Props: $address (Persona\Models\Address) --}}
+@props(['address' => null])
 <article class="persona-address-card">
     <div class="persona-address-card__main">
         <span class="persona-address-card__line1">{{ $address->line_1 }}</span>

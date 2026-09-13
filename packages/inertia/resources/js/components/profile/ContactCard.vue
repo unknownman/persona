@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * ContactActionItem - a single actionable contact.
+ * ContactCard - a single actionable contact card.
  *
  * Renders value + status pills plus protocol-aware links:
  * email -> `mailto:`, phone -> `tel:` and `sms:`. Non-actionable
@@ -26,12 +26,12 @@ function protocolLabel(type: Contact['type']): string {
 </script>
 
 <template>
-  <article class="persona-contact-action">
-    <div class="persona-contact-action__main">
-      <span class="persona-contact-action__value">{{ contact.value }}</span>
-      <span class="persona-contact-action__type">{{ contact.type }}</span>
+  <article class="persona-contact-card">
+    <div class="persona-contact-card__main">
+      <span class="persona-contact-card__value">{{ contact.value }}</span>
+      <span class="persona-contact-card__type">{{ contact.type }}</span>
 
-      <div class="persona-contact-action__badges" aria-label="Status">
+      <div class="persona-contact-card__badges" aria-label="Status">
         <span
           v-if="contact.is_primary"
           class="persona-contact-badge persona-contact-badge--primary"
@@ -56,17 +56,17 @@ function protocolLabel(type: Contact['type']): string {
       </div>
     </div>
 
-    <nav v-if="protocolHref(contact.type, contact.value)" class="persona-contact-action__actions" aria-label="Contact actions">
+    <nav v-if="protocolHref(contact.type, contact.value)" class="persona-contact-card__actions" aria-label="Contact actions">
       <a
         :href="protocolHref(contact.type, contact.value)"
-        class="persona-contact-action__link"
+        class="persona-contact-card__link"
       >
         {{ protocolLabel(contact.type) }}
       </a>
       <a
         v-if="contact.type === 'phone'"
         :href="`sms:${contact.value}`"
-        class="persona-contact-action__link"
+        class="persona-contact-card__link"
       >
         SMS
       </a>

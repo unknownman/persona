@@ -1,4 +1,4 @@
-{{-- Props: $items (array of label => value; null values are collapsed) --}}
+@props(['items' => []])
 <dl class="persona-attributes-table">
     @foreach($items as $label => $value)
         @if($value)

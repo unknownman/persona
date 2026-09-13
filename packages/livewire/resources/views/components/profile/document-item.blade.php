@@ -1,4 +1,4 @@
-{{-- Props: $document (Persona\Models\Document) --}}
+@props(['document' => null])
 <article class="persona-document-item">
     <div class="persona-document-item__main">
         <span class="persona-document-item__type">{{ ucwords(str_replace('_', ' ', $document->type)) }}</span>

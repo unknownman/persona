@@ -1,4 +1,4 @@
-{{-- Props: $contact (Persona\Models\Contact) --}}
+@props(['contact' => null])
 <article class="persona-contact-card">
     <div class="persona-contact-card__main">
         <span class="persona-contact-card__value">{{ $contact->value }}</span>

@@ -9,7 +9,7 @@
 export { default as ProfileOverview } from './ProfileOverview.vue';
 export { default as ProfileHeader } from './ProfileHeader.vue';
 export { default as ProfileContacts } from './ProfileContacts.vue';
-export { default as ContactActionItem } from './ContactActionItem.vue';
+export { default as ContactCard } from './ContactCard.vue';
 export { default as ProfileAddresses } from './ProfileAddresses.vue';
 export { default as AddressCard } from './AddressCard.vue';
 export { default as ProfileDocuments } from './ProfileDocuments.vue';

@@ -1,4 +1,4 @@
-{{-- Props: $relationship (Persona\Models\Relationship), $counterpart (Model) --}}
+@props(['relationship' => null, 'counterpart' => null])
 <div class="persona-relationship-chip" aria-label="Relationship: {{ $relationship->type }}">
     <span class="persona-relationship-chip__type">{{ ucfirst($relationship->type) }}</span>
     <span class="persona-relationship-chip__name">

@@ -205,11 +205,7 @@ class PersonaApiController extends Controller
 
     public function contacts(Request $request): JsonResponse
     {
-        $contacts = Contact::query()
-            ->where($this->scopeFor($request->user()))
-            ->orderByDesc('is_primary')
-            ->orderBy('created_at')
-            ->get();
+        $contacts = Persona::for($this->personable($request))->getFootprint()['contacts'];
 
         return ContactResource::collection($contacts)->response();
     }

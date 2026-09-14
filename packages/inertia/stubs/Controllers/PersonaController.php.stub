@@ -1,8 +1,9 @@
 <?php
 
-namespace {{ namespace }};
+namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -16,82 +17,82 @@ use Persona\Api\Http\Resources\PhysicalAttributeResource;
 use Persona\Api\Http\Resources\ProfileResource;
 use Persona\Api\Http\Resources\RelationshipResource;
 use Persona\Api\Http\Resources\SocialAccountResource;
+use Persona\Contracts\SocialActivityResolverContract;
 use Persona\Persona;
 
 /**
  * Publishable Inertia controller for the Persona ecosystem.
  *
- * Shows how to surface all Persona data as Inertia page props and handle
- * mutations through standard Inertia form-submission redirects.
+ * Renders the profile page with every Persona slice serialized through the
+ * API JsonResources, plus each social account's recent activity resolved via
+ * SocialActivityResolverContract. Mutations use the fluent
+ * `Persona::for($user)->...` entry point and return standard Inertia
+ * form-submission redirects (this stub ships no routes itself).
  *
- * Register routes pointing to your host application's auth + personable
- * model, e.g.:
+ * Example routes:
  *
  *     use App\Http\Controllers\PersonaController;
  *     use Illuminate\Support\Facades\Route;
  *
  *     Route::middleware(['auth', 'verified'])->group(function () {
- *         Route::get('/persona', [PersonaController::class, 'index']);
+ *         Route::get('/persona', [PersonaController::class, 'show']);
  *         Route::post('/persona/contacts', [PersonaController::class, 'storeContact']);
  *         Route::patch('/persona/contacts/{contact}/primary', [PersonaController::class, 'setPrimaryContact']);
  *         Route::delete('/persona/contacts/{contact}', [PersonaController::class, 'destroyContact']);
+ *         Route::post('/persona/addresses', [PersonaController::class, 'storeAddress']);
+ *         Route::post('/persona/documents', [PersonaController::class, 'storeDocument']);
  *     });
  *
- * The controller assumes a route binding resolves the user's model to
- * $personable (e.g. Route::get('/users/{user}/persona/…')).
+ * The personable is resolved from `$request->user()` here; hosts that need a
+ * different owner (e.g. route-bound resources or tenant contexts) can replace
+ * the `$this->personable($request)` call site with their own resolution.
  */
 class PersonaController extends Controller
 {
     /**
-     * Render the Persona page with all available resources as Inertia props.
+     * The polymorphic owner this request acts on.
      *
-     * Your page component receives profile, contacts, addresses, documents,
-     * socialAccounts, physicalAttributes, legalDetails, and relationships
-     * as hydrated JSON resources.
+     * @throws AuthenticationException
      */
-    public function index(Model $personable): Response
+    protected function personable(Request $request): Model
     {
-        $persona = Persona::for($personable);
+        return $request->user()
+            ?? throw new AuthenticationException('Unauthenticated.');
+    }
 
-        return Inertia::render('Persona/Index', [
-            'profile' => ProfileResource::make($personable->profile),
-            'contacts' => ContactResource::collection(
-                $personable->contacts()
-                    ->orderByDesc('is_primary')
-                    ->orderBy('created_at')
-                    ->get()
-            ),
-            'addresses' => AddressResource::collection(
-                $personable->addresses()
-                    ->orderByDesc('is_primary')
-                    ->orderBy('created_at')
-                    ->get()
-            ),
-            'documents' => DocumentResource::collection(
-                $personable->documents()
-                    ->whereNull('deleted_at')
-                    ->orderByDesc('created_at')
-                    ->get()
-            ),
-            'socialAccounts' => SocialAccountResource::collection(
-                $personable->socialAccounts()
-                    ->orderByDesc('is_primary')
-                    ->orderBy('created_at')
-                    ->get()
-            ),
-            'physicalAttributes' => PhysicalAttributeResource::make(
-                $personable->physicalAttributes()->first()
-            ),
-            'legalDetails' => LegalDetailResource::make(
-                $personable->legalDetails()->first()
-            ),
-            'relationships' => RelationshipResource::collection(
-                $personable->relationships()->get()
-            ),
+    /**
+     * Render the Persona page with all resources as Inertia props.
+     *
+     * The page component receives profile, contacts, addresses, documents,
+     * socialAccounts, socialActivities (keyed by account id), physical
+     * attributes, legal details, and relationships as hydrated JSON.
+     */
+    public function show(Request $request): Response
+    {
+        $footprint = Persona::for($this->personable($request))->getFootprint();
+
+        $resolver = app(SocialActivityResolverContract::class);
+
+        $socialActivities = [];
+
+        foreach ($footprint['socialAccounts'] as $account) {
+            $socialActivities[$account->getKey()] = $resolver->getRecentActivity($account);
+        }
+
+        return Inertia::render('Profile', [
+            'profile'            => ProfileResource::make($footprint['profile']),
+            'contacts'           => ContactResource::collection($footprint['contacts']),
+            'addresses'          => AddressResource::collection($footprint['addresses']),
+            'documents'          => DocumentResource::collection($footprint['documents']),
+            'socialAccounts'     => SocialAccountResource::collection($footprint['socialAccounts']),
+            'socialActivities'   => $socialActivities,
+            'physicalAttributes' => PhysicalAttributeResource::make($footprint['physicalAttribute']),
+            'legalDetails'       => LegalDetailResource::make($footprint['legalDetail']),
+            'relationships'      => RelationshipResource::collection($footprint['relationships']),
         ]);
     }
 
-    public function storeContact(Model $personable, Request $request): RedirectResponse
+    public function storeContact(Request $request): RedirectResponse
     {
         $validated = $request->validate([
             'type' => ['required', 'string'],
@@ -100,7 +101,7 @@ class PersonaController extends Controller
             'is_emergency' => ['sometimes', 'boolean'],
         ]);
 
-        Persona::for($personable)->addContact(
+        Persona::for($this->personable($request))->addContact(
             type: $validated['type'],
             value: $validated['value'],
             isPrimary: $validated['is_primary'] ?? false,
@@ -110,29 +111,31 @@ class PersonaController extends Controller
         return back()->with('success', 'Contact added.');
     }
 
-    public function setPrimaryContact(Model $personable, Request $request, string $contact): RedirectResponse
+    public function setPrimaryContact(Request $request, string $contact): RedirectResponse
     {
-        $persona = Persona::for($personable);
+        $persona = Persona::for($this->personable($request));
 
-        $contactModel = $personable->contacts()->findOrFail($contact);
+        $contactModel = $persona->getFootprint()['contacts']->firstWhere('id', $contact)
+            ?? abort(404, 'The contact does not belong to this account.');
 
         $persona->makeContactPrimary($contactModel);
 
         return back()->with('success', 'Primary contact updated.');
     }
 
-    public function destroyContact(Model $personable, Request $request, string $contact): RedirectResponse
+    public function destroyContact(Request $request, string $contact): RedirectResponse
     {
-        $persona = Persona::for($personable);
+        $persona = Persona::for($this->personable($request));
 
-        $contactModel = $personable->contacts()->findOrFail($contact);
+        $contactModel = $persona->getFootprint()['contacts']->firstWhere('id', $contact)
+            ?? abort(404, 'The contact does not belong to this account.');
 
         $persona->deleteContact($contactModel);
 
         return back()->with('success', 'Contact removed.');
     }
 
-    public function storeAddress(Model $personable, Request $request): RedirectResponse
+    public function storeAddress(Request $request): RedirectResponse
     {
         $validated = $request->validate([
             'type' => ['required', 'string', 'max:100'],
@@ -145,12 +148,10 @@ class PersonaController extends Controller
             'is_primary' => ['sometimes', 'boolean'],
         ]);
 
-        $persona = Persona::for($personable);
-
         $isPrimary = $validated['is_primary'] ?? false;
         unset($validated['is_primary']);
 
-        $persona->addAddress(
+        Persona::for($this->personable($request))->addAddress(
             type: $validated['type'],
             line1: $validated['line_1'],
             attributes: collect($validated)->only([
@@ -162,7 +163,7 @@ class PersonaController extends Controller
         return back()->with('success', 'Address added.');
     }
 
-    public function storeDocument(Model $personable, Request $request): RedirectResponse
+    public function storeDocument(Request $request): RedirectResponse
     {
         $validated = $request->validate([
             'type' => ['required', 'string'],
@@ -172,9 +173,7 @@ class PersonaController extends Controller
             'expires_at' => ['sometimes', 'nullable', 'date'],
         ]);
 
-        $persona = Persona::for($personable);
-
-        $persona->addDocument(
+        Persona::for($this->personable($request))->addDocument(
             type: $validated['type'],
             number: $validated['number'],
             metadata: collect($validated)->only(['country_code', 'issued_at', 'expires_at'])->filter()->all(),

@@ -263,7 +263,7 @@ class PersonaApiController extends Controller
 
         $this->assertOwnedBy($personable, $contact);
 
-        Persona::for($personable)->sendContactVerification($contact);
+        $this->guarded(fn () => Persona::for($personable)->sendContactVerification($contact));
 
         return response()->json(['sent' => true]);
     }
@@ -278,7 +278,9 @@ class PersonaApiController extends Controller
             'otp' => ['required', 'string'],
         ]);
 
-        $verified = Persona::for($personable)->verifyContact($contact, $validated['otp']);
+        $verified = $this->guarded(
+            fn () => Persona::for($personable)->verifyContact($contact, $validated['otp'])
+        );
 
         if (! $verified) {
             throw ValidationException::withMessages([

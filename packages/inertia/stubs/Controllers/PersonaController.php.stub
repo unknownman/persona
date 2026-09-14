@@ -7,6 +7,8 @@ use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 use Persona\Api\Http\Resources\AddressResource;
@@ -18,6 +20,9 @@ use Persona\Api\Http\Resources\ProfileResource;
 use Persona\Api\Http\Resources\RelationshipResource;
 use Persona\Api\Http\Resources\SocialAccountResource;
 use Persona\Contracts\SocialActivityResolverContract;
+use Persona\Models\Document;
+use Persona\Models\Relationship;
+use Persona\Models\SocialAccount;
 use Persona\Persona;
 
 /**
@@ -36,11 +41,34 @@ use Persona\Persona;
  *
  *     Route::middleware(['auth', 'verified'])->group(function () {
  *         Route::get('/persona', [PersonaController::class, 'show']);
+ *
+ *         // Contacts
  *         Route::post('/persona/contacts', [PersonaController::class, 'storeContact']);
  *         Route::patch('/persona/contacts/{contact}/primary', [PersonaController::class, 'setPrimaryContact']);
  *         Route::delete('/persona/contacts/{contact}', [PersonaController::class, 'destroyContact']);
+ *
+ *         // Addresses
  *         Route::post('/persona/addresses', [PersonaController::class, 'storeAddress']);
+ *
+ *         // Social accounts
+ *         Route::post('/persona/social-accounts', [PersonaController::class, 'storeSocialAccount']);
+ *         Route::patch('/persona/social-accounts/{socialAccount}/primary', [PersonaController::class, 'setPrimarySocialAccount']);
+ *         Route::delete('/persona/social-accounts/{socialAccount}', [PersonaController::class, 'destroySocialAccount']);
+ *
+ *         // Documents
  *         Route::post('/persona/documents', [PersonaController::class, 'storeDocument']);
+ *         Route::post('/persona/documents/{document}/files', [PersonaController::class, 'attachDocumentFile']);
+ *         Route::delete('/persona/documents/{document}', [PersonaController::class, 'destroyDocument']);
+ *
+ *         // Physical attributes
+ *         Route::put('/persona/physical-attributes', [PersonaController::class, 'updatePhysicalAttributes']);
+ *
+ *         // Legal details
+ *         Route::put('/persona/legal-details', [PersonaController::class, 'updateLegalDetails']);
+ *
+ *         // Relationships
+ *         Route::post('/persona/relationships', [PersonaController::class, 'storeRelationship']);
+ *         Route::delete('/persona/relationships/{relationship}', [PersonaController::class, 'destroyRelationship']);
  *     });
  *
  * The personable is resolved from `$request->user()` here; hosts that need a
@@ -59,6 +87,47 @@ class PersonaController extends Controller
         return $request->user()
             ?? throw new AuthenticationException('Unauthenticated.');
     }
+
+    /**
+     * Run a mutation and translate domain exceptions into session errors.
+     *
+     * The managers throw InvalidArgumentException for domain rules (ownership
+     * mismatches, duplicate values, invalid/self relationships, etc.).
+     *
+     * @template T
+     * @param  callable(): T  $operation
+     * @return T
+     */
+    protected function guarded(callable $operation): mixed
+    {
+        try {
+            return $operation();
+        } catch (\InvalidArgumentException $exception) {
+            throw ValidationException::withMessages(['model' => $exception->getMessage()]);
+        }
+    }
+
+    /**
+     * Ensure a polymorphic record belongs to the authenticated personable.
+     */
+    protected function assertOwnedBy(Model $personable, Model $record): void
+    {
+        throw_if(
+            $record->personable_type !== $personable->getMorphClass()
+            || (string) $record->personable_id !== (string) $personable->getKey(),
+            ValidationException::withMessages([
+                'model' => sprintf(
+                    'The %s does not belong to the given %s.',
+                    class_basename($record),
+                    class_basename($personable),
+                ),
+            ])
+        );
+    }
+
+    // -------------------------------------------------------------------------
+    // Profile
+    // -------------------------------------------------------------------------
 
     /**
      * Render the Persona page with all resources as Inertia props.
@@ -92,6 +161,10 @@ class PersonaController extends Controller
         ]);
     }
 
+    // -------------------------------------------------------------------------
+    // Contacts
+    // -------------------------------------------------------------------------
+
     public function storeContact(Request $request): RedirectResponse
     {
         $validated = $request->validate([
@@ -101,11 +174,13 @@ class PersonaController extends Controller
             'is_emergency' => ['sometimes', 'boolean'],
         ]);
 
-        Persona::for($this->personable($request))->addContact(
-            type: $validated['type'],
-            value: $validated['value'],
-            isPrimary: $validated['is_primary'] ?? false,
-            isEmergency: $validated['is_emergency'] ?? false,
+        $this->guarded(
+            fn () => Persona::for($this->personable($request))->addContact(
+                type: $validated['type'],
+                value: $validated['value'],
+                isPrimary: $validated['is_primary'] ?? false,
+                isEmergency: $validated['is_emergency'] ?? false,
+            )
         );
 
         return back()->with('success', 'Contact added.');
@@ -118,7 +193,7 @@ class PersonaController extends Controller
         $contactModel = $persona->getFootprint()['contacts']->firstWhere('id', $contact)
             ?? abort(404, 'The contact does not belong to this account.');
 
-        $persona->makeContactPrimary($contactModel);
+        $this->guarded(fn () => $persona->makeContactPrimary($contactModel));
 
         return back()->with('success', 'Primary contact updated.');
     }
@@ -130,10 +205,14 @@ class PersonaController extends Controller
         $contactModel = $persona->getFootprint()['contacts']->firstWhere('id', $contact)
             ?? abort(404, 'The contact does not belong to this account.');
 
-        $persona->deleteContact($contactModel);
+        $this->guarded(fn () => $persona->deleteContact($contactModel));
 
         return back()->with('success', 'Contact removed.');
     }
+
+    // -------------------------------------------------------------------------
+    // Addresses
+    // -------------------------------------------------------------------------
 
     public function storeAddress(Request $request): RedirectResponse
     {
@@ -151,34 +230,216 @@ class PersonaController extends Controller
         $isPrimary = $validated['is_primary'] ?? false;
         unset($validated['is_primary']);
 
-        Persona::for($this->personable($request))->addAddress(
-            type: $validated['type'],
-            line1: $validated['line_1'],
-            attributes: collect($validated)->only([
-                'line_2', 'city', 'state', 'country_code', 'zip_code',
-            ])->filter()->all(),
-            isPrimary: $isPrimary,
+        $this->guarded(
+            fn () => Persona::for($this->personable($request))->addAddress(
+                type: $validated['type'],
+                line1: $validated['line_1'],
+                attributes: collect($validated)->only([
+                    'line_2', 'city', 'state', 'country_code', 'zip_code',
+                ])->filter()->all(),
+                isPrimary: $isPrimary,
+            )
         );
 
         return back()->with('success', 'Address added.');
     }
 
+    // -------------------------------------------------------------------------
+    // Social accounts
+    // -------------------------------------------------------------------------
+
+    public function storeSocialAccount(Request $request): RedirectResponse
+    {
+        $socialPlatforms = config('persona.social_platforms', []);
+
+        $validated = $request->validate([
+            'platform' => ['required', 'string', Rule::in($socialPlatforms)],
+            'username' => ['required', 'string', 'max:255'],
+            'url' => ['sometimes', 'nullable', 'url', 'max:2048'],
+            'is_primary' => ['sometimes', 'boolean'],
+        ]);
+
+        $this->guarded(
+            fn () => Persona::for($this->personable($request))->addSocialAccount(
+                $validated['platform'],
+                $validated['username'],
+                $validated['url'] ?? null,
+                $validated['is_primary'] ?? false,
+            )
+        );
+
+        return back()->with('success', 'Social account added.');
+    }
+
+    public function setPrimarySocialAccount(Request $request, SocialAccount $socialAccount): RedirectResponse
+    {
+        $this->assertOwnedBy($this->personable($request), $socialAccount);
+
+        $this->guarded(
+            fn () => Persona::for($this->personable($request))->makeSocialAccountPrimary($socialAccount)
+        );
+
+        return back()->with('success', 'Primary social account updated.');
+    }
+
+    public function destroySocialAccount(Request $request, SocialAccount $socialAccount): RedirectResponse
+    {
+        $personable = $this->personable($request);
+
+        $this->assertOwnedBy($personable, $socialAccount);
+
+        $this->guarded(fn () => Persona::for($personable)->deleteSocialAccount($socialAccount));
+
+        return back()->with('success', 'Social account removed.');
+    }
+
+    // -------------------------------------------------------------------------
+    // Documents
+    // -------------------------------------------------------------------------
+
     public function storeDocument(Request $request): RedirectResponse
     {
+        $documentTypes = config('persona.document_types', []);
+
         $validated = $request->validate([
-            'type' => ['required', 'string'],
+            'type' => ['required', 'string', Rule::in($documentTypes)],
             'number' => ['required', 'string', 'max:255'],
             'country_code' => ['sometimes', 'nullable', 'string', 'max:2'],
             'issued_at' => ['sometimes', 'nullable', 'date'],
-            'expires_at' => ['sometimes', 'nullable', 'date'],
+            'expires_at' => ['sometimes', 'nullable', 'date', 'after:issued_at'],
         ]);
 
-        Persona::for($this->personable($request))->addDocument(
-            type: $validated['type'],
-            number: $validated['number'],
-            metadata: collect($validated)->only(['country_code', 'issued_at', 'expires_at'])->filter()->all(),
+        $metadata = collect($validated)->except('type', 'number')->filter()->all();
+
+        $this->guarded(
+            fn () => Persona::for($this->personable($request))->addDocument(
+                $validated['type'],
+                $validated['number'],
+                $metadata,
+            )
         );
 
         return back()->with('success', 'Document added.');
+    }
+
+    public function attachDocumentFile(Request $request, Document $document): RedirectResponse
+    {
+        $personable = $this->personable($request);
+
+        $this->assertOwnedBy($personable, $document);
+
+        $validated = $request->validate([
+            'file' => ['required', 'file', 'max:10240'],
+            'disk' => ['sometimes', 'string', 'max:50'],
+            'side' => ['sometimes', 'nullable', 'string', Rule::in('front', 'back')],
+        ]);
+
+        $storedPath = $request->file('file')->store(
+            'persona/documents/' . $document->id,
+            $validated['disk'] ?? config('persona.file_disk', 'local'),
+        );
+
+        abort_unless($storedPath, 500, 'Failed to store uploaded file.');
+
+        $this->guarded(
+            fn () => Persona::for($personable)->attachDocumentFile(
+                $document,
+                $storedPath,
+                $validated['disk'] ?? config('persona.file_disk', 'local'),
+                $validated['side'] ?? null,
+            )
+        );
+
+        return back()->with('success', 'Document file attached.');
+    }
+
+    public function destroyDocument(Request $request, Document $document): RedirectResponse
+    {
+        $personable = $this->personable($request);
+
+        $this->assertOwnedBy($personable, $document);
+
+        $this->guarded(fn () => Persona::for($personable)->deleteDocument($document));
+
+        return back()->with('success', 'Document removed.');
+    }
+
+    // -------------------------------------------------------------------------
+    // Physical attributes
+    // -------------------------------------------------------------------------
+
+    public function updatePhysicalAttributes(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'height' => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:300'],
+            'weight' => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:500'],
+            'eye_color' => ['sometimes', 'nullable', 'string', 'max:50'],
+            'hair_color' => ['sometimes', 'nullable', 'string', 'max:50'],
+            'blood_type' => ['sometimes', 'nullable', Rule::in('A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-')],
+        ]);
+
+        $this->guarded(
+            fn () => Persona::for($this->personable($request))->updatePhysicalAttributes($validated)
+        );
+
+        return back()->with('success', 'Physical attributes updated.');
+    }
+
+    // -------------------------------------------------------------------------
+    // Legal details
+    // -------------------------------------------------------------------------
+
+    public function updateLegalDetails(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'nationality' => ['sometimes', 'nullable', 'string', 'max:3'],
+            'marital_status' => ['sometimes', 'nullable', 'string', 'max:50'],
+            'tax_id' => ['sometimes', 'nullable', 'string', 'max:255'],
+        ]);
+
+        $this->guarded(
+            fn () => Persona::for($this->personable($request))->updateLegalDetails($validated)
+        );
+
+        return back()->with('success', 'Legal details updated.');
+    }
+
+    // -------------------------------------------------------------------------
+    // Relationships
+    // -------------------------------------------------------------------------
+
+    public function storeRelationship(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'related_type' => ['required', 'string'],
+            'related_id' => ['required', 'integer'],
+            'type' => ['required', 'string', 'max:100'],
+        ]);
+
+        $morphMap = \Illuminate\Database\Eloquent\Relations\Relation::getMorphedModel($validated['related_type'])
+            ?? $validated['related_type'];
+
+        $related = app($morphMap)->query()->findOrFail($validated['related_id']);
+
+        $this->guarded(
+            fn () => Persona::for($this->personable($request))->linkTo($related, $validated['type'])
+        );
+
+        return back()->with('success', 'Relationship created.');
+    }
+
+    public function destroyRelationship(Request $request, Relationship $relationship): RedirectResponse
+    {
+        $personable = $this->personable($request);
+
+        $this->assertOwnedBy($personable, $relationship);
+
+        $targetModel = app($relationship->related_personable_type)
+            ->query()
+            ->findOrFail($relationship->related_personable_id);
+
+        $this->guarded(fn () => Persona::for($personable)->unlinkFrom($targetModel, $relationship->type));
+
+        return back()->with('success', 'Relationship removed.');
     }
 }

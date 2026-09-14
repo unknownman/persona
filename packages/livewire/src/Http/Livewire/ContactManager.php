@@ -5,6 +5,7 @@ namespace Persona\Livewire\Http\Livewire;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
+use Livewire\Attributes\Computed;
 use Livewire\Attributes\Locked;
 use Livewire\Attributes\Validate;
 use Livewire\Component;
@@ -34,6 +35,8 @@ class ContactManager extends Component
 
     protected PersonaManager $personaManager;
 
+    protected ?Model $resolvedPersonable = null;
+
     public function boot(PersonaManager $personaManager): void
     {
         $this->personaManager = $personaManager;
@@ -43,6 +46,28 @@ class ContactManager extends Component
     {
         $this->personableType = $personableType;
         $this->personableId = $personableId;
+    }
+
+    /**
+     * Contacts scoped to this component's personable morph pair.
+     *
+     * Delegates to the model's `contacts()` relation (HasPersona trait) when
+     * available; otherwise falls back to a direct Contact query on the morph
+     * pair columns so the host model does NOT need the trait.
+     */
+    #[Computed]
+    public function contacts(): Collection
+    {
+        $personable = $this->personable();
+
+        return method_exists($personable, 'contacts')
+            ? $personable->contacts()->orderByDesc('is_primary')->orderBy('created_at')->get()
+            : Contact::query()
+                ->where('personable_type', $this->personableType)
+                ->where('personable_id', $this->personableId)
+                ->orderByDesc('is_primary')
+                ->orderBy('created_at')
+                ->get();
     }
 
     public function addContact(): void
@@ -64,6 +89,7 @@ class ContactManager extends Component
                 isEmergency: $this->isEmergency,
             );
 
+        $this->resetComputed('contacts');
         $this->reset('value', 'isPrimary', 'isEmergency');
         $this->message = __(':value was added as a :type contact.', [
             'value' => $contact->value,
@@ -78,6 +104,7 @@ class ContactManager extends Component
 
         $this->personaManager->contacts()->makePrimary($personable, $contact);
 
+        $this->resetComputed('contacts');
         $this->message = __('Primary contact updated.');
     }
 
@@ -88,16 +115,15 @@ class ContactManager extends Component
 
         $this->personaManager->contacts()->delete($personable, $contact);
 
+        $this->resetComputed('contacts');
         $this->message = __('Contact removed.');
     }
 
     /**
-     * Resolve a contact owned by this component's personable scope directly
-     * through the Contact model.
+     * Resolve a single contact owned by this component's personable scope.
      *
-     * The query is scoped on the morph pair (personable_type / personable_id)
-     * instead of `$personable->contacts()`, so the host model does NOT need to
-     * use the HasPersona trait or define any relation methods for this to work.
+     * Queries the Contact model directly on the morph pair columns so the host
+     * model does NOT need the HasPersona trait for individual lookups.
      */
     protected function resolveContact(int|string $contactId): Contact
     {
@@ -107,27 +133,27 @@ class ContactManager extends Component
             ->findOrFail($contactId);
     }
 
-    public function getContactsProperty(): Collection
-    {
-        return Contact::query()
-            ->where('personable_type', $this->personableType)
-            ->where('personable_id', $this->personableId)
-            ->orderByDesc('is_primary')
-            ->orderBy('created_at')
-            ->get();
-    }
-
     public function render(): \Illuminate\Contracts\View\View
     {
         return view('persona-livewire::livewire.contact-manager');
     }
 
+    /**
+     * Resolve the personable model for this component's morph pair.
+     *
+     * Uses the class from the morph map (or falls back to the raw type)
+     * and caches the result for the duration of the request lifecycle.
+     */
     protected function personable(): Model
     {
-        // Resolve morph-map aliases (e.g. 'user' => App\Models\User) through
-        // the canonical Relation resolver so UUID models and morph maps work.
+        if ($this->resolvedPersonable) {
+            return $this->resolvedPersonable;
+        }
+
         $class = Relation::getMorphedModel($this->personableType) ?? $this->personableType;
 
-        return app($class)->query()->findOrFail($this->personableId);
+        $this->resolvedPersonable = app($class)->query()->findOrFail($this->personableId);
+
+        return $this->resolvedPersonable;
     }
 }

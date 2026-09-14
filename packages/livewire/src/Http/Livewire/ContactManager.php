@@ -47,15 +47,17 @@ class ContactManager extends Component
 
     public function addContact(): void
     {
+        $personable = $this->personable();
+
         $this->validate([
             'type' => ['required', 'string'],
-            'value' => ['required', 'string', 'max:255', new PersonaUniqueContactValue($this->type)],
+            'value' => ['required', 'string', 'max:255', new PersonaUniqueContactValue($this->type, $personable)],
         ]);
 
         $contact = $this->personaManager
             ->contacts()
             ->add(
-                $this->personable(),
+                $personable,
                 $this->type,
                 $this->value,
                 isPrimary: $this->isPrimary,

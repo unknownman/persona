@@ -4,10 +4,10 @@ namespace Persona\Livewire\Http\Livewire;
 
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Model;
+use Livewire\Attributes\Computed;
 use Livewire\Attributes\Locked;
 use Livewire\Component;
 use Persona\Contracts\SocialActivityResolverContract;
-use Persona\Models\Profile;
 use Persona\Persona;
 
 /**
@@ -25,6 +25,11 @@ use Persona\Persona;
  * and falls back to direct morph-pair queries for plain models, so the view
  * layer never touches the database itself.
  *
+ * The heavy aggregation is exposed through {@see footprint()} instead of
+ * `render()` so it only executes once per Livewire request — the computed
+ * property is memoized and shared with the view and with the other computed
+ * properties ({@see socialActivities()}, {@see initials()}).
+ *
  * Every section is a small dedicated Blade partial under
  * `resources/views/components/profile/`, so hosts can override any
  * single piece by publishing the view namespace.
@@ -41,37 +46,54 @@ class ProfileOverview extends Component
 
     public function render(): View
     {
-        $details = Persona::for($this->personable)->getFootprint();
+        return view('persona-livewire::components.profile.overview');
+    }
 
-        $socialActivities = [];
+    /**
+     * The full Persona footprint for the personable.
+     *
+     * @return array{
+     *     profile: \Persona\Models\Profile|null,
+     *     contacts: \Illuminate\Database\Eloquent\Collection,
+     *     addresses: \Illuminate\Database\Eloquent\Collection,
+     *     documents: \Illuminate\Database\Eloquent\Collection,
+     *     socialAccounts: \Illuminate\Database\Eloquent\Collection,
+     *     relationships: \Illuminate\Database\Eloquent\Collection,
+     *     physicalAttribute: \Persona\Models\PhysicalAttribute|null,
+     *     legalDetail: \Persona\Models\LegalDetail|null,
+     * }
+     */
+    #[Computed]
+    public function footprint(): array
+    {
+        return Persona::for($this->personable)->getFootprint();
+    }
+
+    /**
+     * Recent activity resolved per social account, keyed by account id.
+     */
+    #[Computed]
+    public function socialActivities(): array
+    {
         $resolver = app(SocialActivityResolverContract::class);
 
-        foreach ($details['socialAccounts'] as $account) {
-            $socialActivities[$account->getKey()] = $resolver->getRecentActivity($account);
+        $activities = [];
+
+        foreach ($this->footprint['socialAccounts'] as $account) {
+            $activities[$account->getKey()] = $resolver->getRecentActivity($account);
         }
 
-        return view('persona-livewire::components.profile.overview', [
-            'personable'        => $this->personable,
-            'profile'           => $details['profile'],
-            'contacts'          => $details['contacts'],
-            'addresses'         => $details['addresses']->groupBy('type'),
-            'documents'         => $details['documents'],
-            'socialAccounts'    => $details['socialAccounts'],
-            'socialActivities'  => $socialActivities,
-            'relationships'     => $details['relationships'],
-            'physicalAttribute' => $details['physicalAttribute'],
-            'legalDetail'       => $details['legalDetail'],
-            'initials'          => $this->computeInitials($details['profile']),
-        ]);
+        return $activities;
     }
 
     /**
      * Avatar fallback initials derived from the profile name.
      */
-    protected function computeInitials(?Profile $profile): string
+    #[Computed]
+    public function initials(): string
     {
-        $first = $profile?->first_name ?? '';
-        $last  = $profile?->last_name ?? '';
+        $first = $this->footprint['profile']?->first_name ?? '';
+        $last  = $this->footprint['profile']?->last_name ?? '';
 
         return strtoupper($first[0] ?? '') . strtoupper($last[0] ?? '');
     }

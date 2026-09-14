@@ -1,4 +1,4 @@
-<div class="persona-contacts" wire:poll.5s>
+<div class="persona-contacts">
     <h2 class="persona-contacts__title">{{ __('Contacts') }}</h2>
 
     @if ($message)

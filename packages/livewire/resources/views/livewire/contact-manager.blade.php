@@ -1,5 +1,5 @@
 <div class="persona-contacts" wire:poll.5s>
-    <h2 class="persona-contacts__title">Contacts</h2>
+    <h2 class="persona-contacts__title">{{ __('Contacts') }}</h2>
 
     @if ($message)
         <p class="persona-contacts__message" role="status">{{ $message }}</p>
@@ -9,7 +9,7 @@
         @forelse ($this->contacts as $contact)
             @include('persona-livewire::livewire.partials.contact-item', ['contact' => $contact])
         @empty
-            <li class="persona-contacts__empty">No contacts yet.</li>
+            <li class="persona-contacts__empty">{{ __('No contacts yet.') }}</li>
         @endforelse
     </ul>
 

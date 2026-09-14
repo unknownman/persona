@@ -13,10 +13,10 @@
                     $profile->last_name,
                 ])->filter()->implode(' ');
             @endphp
-            {{ $fullName ?: 'Unnamed' }}
+            {{ $fullName ?: __('Unnamed') }}
         </h2>
 
-        <div class="persona-profile__chips" aria-label="Profile details">
+        <div class="persona-profile__chips" aria-label="{{ __('Profile details') }}">
             @if($profile->timezone)
                 <span class="persona-profile__chip">{{ $profile->timezone }}</span>
             @endif

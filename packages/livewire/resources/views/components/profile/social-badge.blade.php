@@ -7,17 +7,17 @@
             class="persona-social-badge__handle"
             target="_blank"
             rel="noopener noreferrer"
-            aria-label="Profile on {{ $account->platform }}"
+            aria-label="{{ __('Profile on :platform', ['platform' => $account->platform]) }}"
         >
             {{ \Illuminate\Support\Str::startsWith($account->username, '@') ? $account->username : '@' . $account->username }}
         </a>
         @if($account->is_primary)
-            <span class="persona-social-badge__primary" aria-label="Primary account">Primary</span>
+            <span class="persona-social-badge__primary" aria-label="{{ __('Primary account') }}">{{ __('Primary') }}</span>
         @endif
     </div>
 
     @if($activities)
-        <ul class="persona-social-badge__feed" aria-label="Recent activity">
+        <ul class="persona-social-badge__feed" aria-label="{{ __('Recent activity') }}">
             @foreach($activities as $activity)
                 <li class="persona-social-badge__feed-item">
                     @if($activity['text'] ?? null)
@@ -33,7 +33,7 @@
                             @if($activity['published_at'] ?? null)
                                 {{ \Illuminate\Support\Carbon::parse($activity['published_at'])->diffForHumans() }}
                             @else
-                                View post
+                                {{ __('View post') }}
                             @endif
                         </a>
                     @endif

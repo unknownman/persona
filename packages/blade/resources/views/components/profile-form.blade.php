@@ -5,7 +5,7 @@
     @endif
 
     <div class="persona-profile-form__field">
-        <label for="first_name" class="persona-profile-form__label">First name</label>
+        <label for="first_name" class="persona-profile-form__label">{{ __('First name') }}</label>
         <input
             type="text"
             id="first_name"
@@ -19,7 +19,7 @@
     </div>
 
     <div class="persona-profile-form__field">
-        <label for="last_name" class="persona-profile-form__label">Last name</label>
+        <label for="last_name" class="persona-profile-form__label">{{ __('Last name') }}</label>
         <input
             type="text"
             id="last_name"
@@ -33,7 +33,7 @@
     </div>
 
     <div class="persona-profile-form__field">
-        <label for="middle_name" class="persona-profile-form__label">Middle name</label>
+        <label for="middle_name" class="persona-profile-form__label">{{ __('Middle name') }}</label>
         <input
             type="text"
             id="middle_name"
@@ -44,7 +44,7 @@
     </div>
 
     <div class="persona-profile-form__field">
-        <label for="gender" class="persona-profile-form__label">Gender</label>
+        <label for="gender" class="persona-profile-form__label">{{ __('Gender') }}</label>
         <input
             type="text"
             id="gender"
@@ -55,7 +55,7 @@
     </div>
 
     <div class="persona-profile-form__field">
-        <label for="birth_date" class="persona-profile-form__label">Birth date</label>
+        <label for="birth_date" class="persona-profile-form__label">{{ __('Birth date') }}</label>
         <input
             type="date"
             id="birth_date"
@@ -66,7 +66,7 @@
     </div>
 
     <div class="persona-profile-form__field">
-        <label for="locale" class="persona-profile-form__label">Locale</label>
+        <label for="locale" class="persona-profile-form__label">{{ __('Locale') }}</label>
         <input
             type="text"
             id="locale"
@@ -77,7 +77,7 @@
     </div>
 
     <div class="persona-profile-form__field">
-        <label for="timezone" class="persona-profile-form__label">Timezone</label>
+        <label for="timezone" class="persona-profile-form__label">{{ __('Timezone') }}</label>
         <input
             type="text"
             id="timezone"
@@ -89,7 +89,7 @@
 
     <div class="persona-profile-form__actions">
         <button type="submit" class="persona-profile-form__submit">
-            {{ $profile ? 'Save changes' : 'Create profile' }}
+            {{ $profile ? __('Save changes') : __('Create profile') }}
         </button>
     </div>
 </form>

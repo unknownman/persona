@@ -1,6 +1,6 @@
-<div class="persona-addresses-list" aria-label="Addresses">
+<div class="persona-addresses-list" aria-label="{{ __('Addresses') }}">
     @if ($addresses->isEmpty())
-        <p class="persona-addresses-list__empty">No addresses yet.</p>
+        <p class="persona-addresses-list__empty">{{ __('No addresses yet.') }}</p>
     @else
         <ul class="persona-addresses-list__items">
             @foreach ($addresses as $address)
@@ -23,7 +23,7 @@
                     <span class="persona-address-item__meta">
                         <span class="persona-address-item__type">{{ $address->type }}</span>
                         @if ($address->is_primary)
-                            <span class="persona-address-badge persona-address-badge--primary">primary</span>
+                            <span class="persona-address-badge persona-address-badge--primary">{{ __('primary') }}</span>
                         @endif
                     </span>
                 </li>

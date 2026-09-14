@@ -19,6 +19,6 @@
     </div>
 
     @if($address->is_primary)
-        <span class="persona-address-badge persona-address-badge--primary" aria-label="Primary address">Primary</span>
+        <span class="persona-address-badge persona-address-badge--primary" aria-label="{{ __('Primary address') }}">{{ __('Primary') }}</span>
     @endif
 </article>

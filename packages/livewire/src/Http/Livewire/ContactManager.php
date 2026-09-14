@@ -65,7 +65,10 @@ class ContactManager extends Component
             );
 
         $this->reset('value', 'isPrimary', 'isEmergency');
-        $this->message = "{$contact->value} was added as a {$contact->type} contact.";
+        $this->message = __(':value was added as a :type contact.', [
+            'value' => $contact->value,
+            'type' => $contact->type,
+        ]);
     }
 
     public function setAsPrimary(int|string $contactId): void
@@ -75,7 +78,7 @@ class ContactManager extends Component
 
         $this->personaManager->contacts()->makePrimary($personable, $contact);
 
-        $this->message = 'Primary contact updated.';
+        $this->message = __('Primary contact updated.');
     }
 
     public function deleteContact(int|string $contactId): void
@@ -85,7 +88,7 @@ class ContactManager extends Component
 
         $this->personaManager->contacts()->delete($personable, $contact);
 
-        $this->message = 'Contact removed.';
+        $this->message = __('Contact removed.');
     }
 
     /**

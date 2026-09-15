@@ -1,12 +1,11 @@
 {
     "name": "laravel-persona/livewire",
-    "version": "1.0.0",
     "description": "Persona Livewire - Livewire 3 UI components for managing contact data on top of the headless Persona core.",
     "keywords": ["persona", "laravel", "livewire", "contact", "profile"],
     "license": "MIT",
     "require": {
         "php": "^8.2",
-        "laravel-persona/core": "^1.4",
+        "laravel-persona/core": "^1.0",
         "illuminate/support": "^11.0|^12.0|^13.0",
         "illuminate/view": "^11.0|^12.0|^13.0",
         "livewire/livewire": "^3.0"

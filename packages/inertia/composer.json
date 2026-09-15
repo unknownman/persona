@@ -1,12 +1,11 @@
 {
     "name": "laravel-persona/inertia",
-    "version": "1.0.0",
     "description": "Persona Inertia - Vue 3 + Inertia front-end kit (typed composables and components) for the headless Persona core.",
     "keywords": ["persona", "laravel", "inertia", "vue", "profile", "contact"],
     "license": "MIT",
     "require": {
         "php": "^8.2",
-        "laravel-persona/core": "^1.4",
+        "laravel-persona/core": "^1.0",
         "illuminate/support": "^11.0|^12.0|^13.0",
         "inertiajs/inertia-laravel": "^1.0|^2.0|^3.0"
     },

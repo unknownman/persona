@@ -1,0 +1,39 @@
+name: Subtree Split
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+
+jobs:
+  split:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - local_path: packages/core
+            split_repository: unknownman/persona-core
+          - local_path: packages/livewire
+            split_repository: unknownman/persona-livewire
+          - local_path: packages/inertia
+            split_repository: unknownman/persona-inertia
+          - local_path: packages/blade
+            split_repository: unknownman/persona-blade
+          - local_path: packages/api
+            split_repository: unknownman/persona-api
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Split ${{ matrix.package.local_path }}
+        uses: symplify/monorepo-split-github-action@v2.3.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+        with:
+          package_path: ${{ matrix.package.local_path }}
+          split_repository: ${{ matrix.package.split_repository }}

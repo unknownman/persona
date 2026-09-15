@@ -11,14 +11,6 @@ use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
-use Persona\Api\Http\Resources\AddressResource;
-use Persona\Api\Http\Resources\ContactResource;
-use Persona\Api\Http\Resources\DocumentResource;
-use Persona\Api\Http\Resources\LegalDetailResource;
-use Persona\Api\Http\Resources\PhysicalAttributeResource;
-use Persona\Api\Http\Resources\ProfileResource;
-use Persona\Api\Http\Resources\RelationshipResource;
-use Persona\Api\Http\Resources\SocialAccountResource;
 use Persona\Contracts\SocialActivityResolverContract;
 use Persona\Models\Document;
 use Persona\Models\Relationship;
@@ -28,9 +20,9 @@ use Persona\Persona;
 /**
  * Publishable Inertia controller for the Persona ecosystem.
  *
- * Renders the profile page with every Persona slice serialized through the
- * API JsonResources, plus each social account's recent activity resolved via
- * SocialActivityResolverContract. Mutations use the fluent
+ * Renders the profile page with the persona footprint shaped into the
+ * `PersonableBag` Vue interface, plus each social account's recent activity
+ * resolved via SocialActivityResolverContract. Mutations use the fluent
  * `Persona::for($user)->...` entry point and return standard Inertia
  * form-submission redirects (this stub ships no routes itself).
  *
@@ -130,15 +122,20 @@ class PersonaController extends Controller
     // -------------------------------------------------------------------------
 
     /**
-     * Render the Persona page with all resources as Inertia props.
+     * Render the Persona page as a nested PersonableBag.
      *
-     * The page component receives profile, contacts, addresses, documents,
-     * socialAccounts, socialActivities (keyed by account id), physical
-     * attributes, legal details, and relationships as hydrated JSON.
+     * The page component receives a single `personable` object shaped like the
+     * `PersonableBag` interface, plus the resolved `relationships`,
+     * `socialActivities` (keyed by account id), and the `personaScope` morph
+     * pair the bag belongs to. Eloquent models are returned directly: Inertia
+     * serializes them to plain objects, and Persona's internal lookup hashes
+     * are `$hidden`, so nothing sensitive leaves the server.
      */
     public function show(Request $request): Response
     {
-        $footprint = Persona::for($this->personable($request))->getFootprint();
+        $personable = $this->personable($request);
+
+        $footprint = Persona::for($personable)->getFootprint();
 
         $resolver = app(SocialActivityResolverContract::class);
 
@@ -149,15 +146,21 @@ class PersonaController extends Controller
         }
 
         return Inertia::render('Profile', [
-            'profile'            => ProfileResource::make($footprint['profile']),
-            'contacts'           => ContactResource::collection($footprint['contacts']),
-            'addresses'          => AddressResource::collection($footprint['addresses']),
-            'documents'          => DocumentResource::collection($footprint['documents']),
-            'socialAccounts'     => SocialAccountResource::collection($footprint['socialAccounts']),
-            'socialActivities'   => $socialActivities,
-            'physicalAttributes' => PhysicalAttributeResource::make($footprint['physicalAttribute']),
-            'legalDetails'       => LegalDetailResource::make($footprint['legalDetail']),
-            'relationships'      => RelationshipResource::collection($footprint['relationships']),
+            'personable' => [
+                'profile'            => $footprint['profile'],
+                'contacts'           => $footprint['contacts'],
+                'addresses'          => $footprint['addresses'],
+                'documents'          => $footprint['documents'],
+                'social_accounts'    => $footprint['socialAccounts'],
+                'physical_attribute' => $footprint['physicalAttribute'],
+                'legal_detail'       => $footprint['legalDetail'],
+            ],
+            'relationships' => $footprint['relationships'],
+            'socialActivities' => $socialActivities,
+            'personaScope' => [
+                'personable_type' => $personable->getMorphClass(),
+                'personable_id'   => $personable->getKey(),
+            ],
         ]);
     }
 

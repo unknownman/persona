@@ -42,10 +42,19 @@ class ContactManager extends Component
         $this->personaManager = $personaManager;
     }
 
-    public function mount(string $personableType, int|string $personableId): void
-    {
-        $this->personableType = $personableType;
-        $this->personableId = $personableId;
+    public function mount(
+        ?Model $personable = null,
+        ?string $personableType = null,
+        int|string|null $personableId = null,
+    ): void {
+        if ($personable) {
+            $this->personableType = $personable->getMorphClass();
+            $this->personableId = $personable->getKey();
+            $this->resolvedPersonable = $personable;
+        } else {
+            $this->personableType = (string) $personableType;
+            $this->personableId = $personableId;
+        }
     }
 
     /**

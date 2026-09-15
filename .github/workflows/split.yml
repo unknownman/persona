@@ -7,6 +7,16 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to split (e.g. v1.0.1). Leave empty to split the branch.'
+        required: false
+        type: string
+
+# On a tag push: split that tag. On a manual dispatch with a tag: split it.
+# On a plain branch push: empty, so the action splits the branch.
+env:
+  SPLIT_TAG: ${{ github.ref_type == 'tag' && github.ref_name || github.event.inputs.tag }}
 
 jobs:
   split:
@@ -39,5 +49,6 @@ jobs:
           package_directory: ${{ matrix.package.directory }}
           repository_organization: unknownman
           repository_name: ${{ matrix.package.repository }}
+          tag: ${{ env.SPLIT_TAG }}
           user_name: unknownman
           user_email: unknownman@users.noreply.github.com

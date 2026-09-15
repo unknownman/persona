@@ -336,7 +336,7 @@ class PersonaController extends Controller
 
         $storedPath = $request->file('file')->store(
             'persona/documents/' . $document->id,
-            $validated['disk'] ?? config('persona.file_disk', 'local'),
+            $validated['disk'] ?? config('persona.storage.disk', 'local'),
         );
 
         abort_unless($storedPath, 500, 'Failed to store uploaded file.');
@@ -345,7 +345,7 @@ class PersonaController extends Controller
             fn () => Persona::for($personable)->attachDocumentFile(
                 $document,
                 $storedPath,
-                $validated['disk'] ?? config('persona.file_disk', 'local'),
+                $validated['disk'] ?? config('persona.storage.disk', 'local'),
                 $validated['side'] ?? null,
             )
         );

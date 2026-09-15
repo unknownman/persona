@@ -190,7 +190,14 @@ export type DocumentType =
   | 'social_security'
   | (string & {});
 
-/** Document lifecycle status (mirrors `persona.document_statuses`). */
+/**
+ * Document lifecycle status (mirrors `persona.document_statuses`).
+ *
+ * NOTE: these literals are only informational suggestions. The backend reads
+ * the actual vocabulary from `persona.document_statuses.*` (initial/verified/
+ * rejected), which hosts may rename freely. Keep this union in sync with that
+ * config; the `(string & {})` intersection accepts any host-customized value.
+ */
 export type DocumentStatus = 'pending' | 'verified' | 'rejected' | (string & {});
 
 /** Allowed social platform vocabulary (mirrors `persona.social_platforms`). */

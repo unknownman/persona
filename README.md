@@ -3,9 +3,9 @@
 </p>
 
 <p align="center">
-    <a href="https://packagist.org/packages/laravel-persona/core"><img src="https://img.shields.io/packagist/v/laravel-persona/core.svg?style=flat-square" alt="Latest Version on Packagist"></a>
-    <a href="https://packagist.org/packages/laravel-persona/core"><img src="https://img.shields.io/packagist/dt/laravel-persona/core.svg?style=flat-square" alt="Total Downloads"></a>
-    <a href="https://packagist.org/packages/laravel-persona/core"><img src="https://img.shields.io/packagist/l/laravel-persona/core.svg?style=flat-square" alt="License"></a>
+    <a href="https://packagist.org/packages/laravel-persona/core"><img src="https://img.shields.io/packagist/v/laravel-persona/core.svg?style=flat-square&v=1.0.2" alt="Latest Version on Packagist"></a>
+    <a href="https://packagist.org/packages/laravel-persona/core"><img src="https://img.shields.io/packagist/dt/laravel-persona/core.svg?style=flat-square&v=1.0.2" alt="Total Downloads"></a>
+    <a href="https://packagist.org/packages/laravel-persona/core"><img src="https://img.shields.io/packagist/l/laravel-persona/core.svg?style=flat-square&v=1.0.2" alt="License"></a>
 </p>
 
 ## Introduction

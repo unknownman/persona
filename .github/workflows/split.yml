@@ -6,6 +6,7 @@ on:
       - main
     tags:
       - 'v*'
+  workflow_dispatch:
 
 jobs:
   split:
@@ -14,26 +15,29 @@ jobs:
       fail-fast: false
       matrix:
         package:
-          - local_path: packages/core
-            split_repository: unknownman/persona-core
-          - local_path: packages/livewire
-            split_repository: unknownman/persona-livewire
-          - local_path: packages/inertia
-            split_repository: unknownman/persona-inertia
-          - local_path: packages/blade
-            split_repository: unknownman/persona-blade
-          - local_path: packages/api
-            split_repository: unknownman/persona-api
+          - directory: packages/core
+            repository: persona-core
+          - directory: packages/livewire
+            repository: persona-livewire
+          - directory: packages/inertia
+            repository: persona-inertia
+          - directory: packages/blade
+            repository: persona-blade
+          - directory: packages/api
+            repository: persona-api
 
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Split ${{ matrix.package.local_path }}
+      - name: Split ${{ matrix.package.directory }}
         uses: symplify/monorepo-split-github-action@v2.3.0
         env:
           GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
         with:
-          package_path: ${{ matrix.package.local_path }}
-          split_repository: ${{ matrix.package.split_repository }}
+          package_directory: ${{ matrix.package.directory }}
+          repository_organization: unknownman
+          repository_name: ${{ matrix.package.repository }}
+          user_name: unknownman
+          user_email: unknownman@users.noreply.github.com

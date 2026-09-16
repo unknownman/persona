@@ -3,6 +3,7 @@
 namespace Persona\Managers;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Traits\Macroable;
 use Persona\Models\Address;
 use Persona\Models\Contact;
 use Persona\Models\Document;
@@ -27,6 +28,8 @@ use Persona\Models\SocialAccount;
  */
 final class ScopedPersonaManager
 {
+    use Macroable;
+
     public function __construct(
         private readonly Model $personable,
         private readonly PersonaManager $root,

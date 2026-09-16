@@ -20,5 +20,13 @@ class PersonaInertiaServiceProvider extends ServiceProvider
         $this->publishes([
             __DIR__ . '/../../stubs/Controllers/PersonaController.php.stub' => app_path('Http/Controllers/PersonaController.php'),
         ], 'persona-inertia-controllers');
+
+        $this->publishes([
+            __DIR__ . '/../../routes/persona.php' => base_path('routes/persona.php'),
+        ], 'persona-inertia-routes');
+
+        $this->publishes([
+            __DIR__ . '/../../resources/js/pages' => resource_path('js/pages/persona'),
+        ], 'persona-inertia-page');
     }
 }

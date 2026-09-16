@@ -1,0 +1,38 @@
+{
+  "name": "@laravel-persona/inertia",
+  "version": "0.1.0",
+  "description": "Vue 3 + Inertia presentation layer for Laravel Persona",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    "./types": "./resources/js/types/persona.ts",
+    "./composables": "./resources/js/composables/index.ts",
+    "./components/profile": "./resources/js/components/profile/index.ts",
+    "./components/contacts": "./resources/js/components/contacts/index.ts",
+    "./components/addresses": "./resources/js/components/addresses/index.ts",
+    "./components/documents": "./resources/js/components/documents/index.ts",
+    "./components/social-accounts": "./resources/js/components/social-accounts/index.ts",
+    "./components/relationships": "./resources/js/components/relationships/index.ts",
+    "./components/attributes": "./resources/js/components/attributes/index.ts"
+  },
+  "files": [
+    "resources/js/",
+    "src/",
+    "stubs/",
+    "routes/"
+  ],
+  "peerDependencies": {
+    "@inertiajs/vue3": "^1.0.0",
+    "vue": "^3.4.0"
+  },
+  "peerDependenciesMeta": {
+    "@inertiajs/vue3": {
+      "optional": false
+    }
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "vue": "^3.4.0",
+    "@inertiajs/vue3": "^1.0.0"
+  }
+}

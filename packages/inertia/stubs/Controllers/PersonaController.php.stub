@@ -12,6 +12,7 @@ use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 use Persona\Contracts\SocialActivityResolverContract;
+use Persona\Models\Address;
 use Persona\Models\Document;
 use Persona\Models\Relationship;
 use Persona\Models\SocialAccount;
@@ -39,8 +40,10 @@ use Persona\Persona;
  *         Route::patch('/persona/contacts/{contact}/primary', [PersonaController::class, 'setPrimaryContact']);
  *         Route::delete('/persona/contacts/{contact}', [PersonaController::class, 'destroyContact']);
  *
- *         // Addresses
+*     // Addresses
  *         Route::post('/persona/addresses', [PersonaController::class, 'storeAddress']);
+ *         Route::patch('/persona/addresses/{address}/primary', [PersonaController::class, 'setPrimaryAddress']);
+ *         Route::delete('/persona/addresses/{address}', [PersonaController::class, 'destroyAddress']);
  *
  *         // Social accounts
  *         Route::post('/persona/social-accounts', [PersonaController::class, 'storeSocialAccount']);
@@ -245,6 +248,28 @@ class PersonaController extends Controller
         );
 
         return back()->with('success', 'Address added.');
+    }
+
+    public function setPrimaryAddress(Request $request, Address $address): RedirectResponse
+    {
+        $personable = $this->personable($request);
+
+        $this->assertOwnedBy($personable, $address);
+
+        $this->guarded(fn () => Persona::for($personable)->makeAddressPrimary($address));
+
+        return back()->with('success', 'Primary address updated.');
+    }
+
+    public function destroyAddress(Request $request, Address $address): RedirectResponse
+    {
+        $personable = $this->personable($request);
+
+        $this->assertOwnedBy($personable, $address);
+
+        $this->guarded(fn () => Persona::for($personable)->deleteAddress($address));
+
+        return back()->with('success', 'Address removed.');
     }
 
     // -------------------------------------------------------------------------

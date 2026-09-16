@@ -1,11 +1,12 @@
 <script setup lang="ts">
 /**
- * ProfileHeader - identity block: initials avatar, full name, and
- * timezone/locale/demographic chips.
+ * ProfileHeader - identity block: avatar image (when an `avatar_url` is
+ * resolved), initials fallback, full name, and timezone/locale/demographic
+ * chips.
  *
- * The default schema is initials-based (no avatar column); hosts that add
- * an avatar URL can override this component's template or pass an inline
- * image through safely — the data contract stays untouched.
+ * The default schema is initials-based (no avatar column); hosts that
+ * resolve an avatar URL via `AvatarResolverContract` get an `<img>` for
+ * free — the data contract stays untouched.
  */
 import { computed } from 'vue';
 import { useProfile } from '../../composables/useProfile';
@@ -36,7 +37,13 @@ function birthdayLabel(date: string | null): string | null {
 <template>
   <header class="persona-profile__header">
     <span class="persona-profile__avatar" aria-hidden="true">
-      <span class="persona-profile__avatar-initials">{{ initials }}</span>
+      <img
+        v-if="profile.avatar_url"
+        :src="profile.avatar_url"
+        alt="Avatar"
+        class="persona-profile__avatar-img"
+      >
+      <span v-else class="persona-profile__avatar-initials">{{ initials }}</span>
     </span>
 
     <div class="persona-profile__identity">

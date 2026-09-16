@@ -28,6 +28,7 @@ export interface Profile extends Personable {
   birth_date: string | null;
   locale: string | null;
   timezone: string | null;
+  avatar_url?: string | null;
   created_at: string | null;
   updated_at: string | null;
 }

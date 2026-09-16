@@ -1,7 +1,16 @@
 @props(['profile' => null, 'initials' => ''])
 <header class="persona-profile__header">
     <span class="persona-profile__avatar" aria-hidden="true">
-        <span class="persona-profile__avatar-initials">{{ $initials }}</span>
+        @php
+            $avatarUrl = $profile
+                ? ($profile->avatar_url ?? app(\Persona\Contracts\AvatarResolverContract::class)->getAvatarUrl($profile))
+                : null;
+        @endphp
+        @if($avatarUrl)
+            <img src="{{ $avatarUrl }}" alt="Avatar" class="persona-profile__avatar-img">
+        @else
+            <span class="persona-profile__avatar-initials">{{ $initials }}</span>
+        @endif
     </span>
 
     <div class="persona-profile__identity">

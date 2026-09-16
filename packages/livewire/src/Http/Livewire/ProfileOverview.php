@@ -3,6 +3,7 @@
 namespace Persona\Livewire\Http\Livewire;
 
 use Illuminate\Contracts\View\View;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Locked;
@@ -84,6 +85,95 @@ class ProfileOverview extends Component
         }
 
         return $activities;
+    }
+
+    /**
+     * Addresses grouped by type, ready for the view.
+     *
+     * Kept out of the Blade layer so the view stays a dumb renderer and the
+     * grouping cost is computed once per Livewire request.
+     *
+     * @return Collection<string, Collection<int, \Persona\Models\Address>>
+     */
+    #[Computed]
+    public function addressGroups(): Collection
+    {
+        return $this->footprint['addresses']->groupBy('type');
+    }
+
+    /**
+     * Physical-attribute rows as label/value pairs (nulls filtered by the view).
+     *
+     * @return array<string, string|null>
+     */
+    #[Computed]
+    public function physicalItems(): array
+    {
+        $attribute = $this->footprint['physicalAttribute'];
+
+        if (! $attribute) {
+            return [];
+        }
+
+        return [
+            __('Height')     => $attribute->height ? $attribute->height . ' cm' : null,
+            __('Weight')     => $attribute->weight ? $attribute->weight . ' kg' : null,
+            __('Eye color')  => $attribute->eye_color,
+            __('Hair color') => $attribute->hair_color,
+            __('Blood type') => $attribute->blood_type,
+        ];
+    }
+
+    /**
+     * Legal-detail rows as label/value pairs (nulls filtered by the view).
+     *
+     * @return array<string, string|null>
+     */
+    #[Computed]
+    public function legalItems(): array
+    {
+        $detail = $this->footprint['legalDetail'];
+
+        if (! $detail) {
+            return [];
+        }
+
+        return [
+            __('Nationality')    => $detail->nationality,
+            __('Marital status') => $detail->marital_status,
+            __('Tax ID')         => $detail->tax_id,
+        ];
+    }
+
+    /**
+     * The counterpart model (and direction) for every relationship.
+     *
+     * A relationship row may mount this entity on either side; the resolved
+     * counter-model is what gets displayed. Keyed by relationship id.
+     *
+     * @return array<int, array{counterpart: \Illuminate\Database\Eloquent\Model|null, self: bool}>
+     */
+    #[Computed]
+    public function relationshipCounterparts(): array
+    {
+        $morph = $this->personable->getMorphClass();
+        $key   = (string) $this->personable->getKey();
+
+        $counterparts = [];
+
+        foreach ($this->footprint['relationships'] as $relationship) {
+            $isSelf = $relationship->personable_type === $morph
+                && (string) $relationship->personable_id === $key;
+
+            $counterparts[$relationship->getKey()] = [
+                'counterpart' => $isSelf
+                    ? $relationship->relatedPersonable
+                    : $relationship->personable,
+                'self' => $isSelf,
+            ];
+        }
+
+        return $counterparts;
     }
 
     /**

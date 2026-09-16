@@ -1,4 +1,4 @@
-@props(['document' => null])
+{{-- Single document item. Variables: $document. --}}
 @php
     $isExpired = $document->isExpired();
 @endphp
@@ -10,9 +10,9 @@
         <span class="persona-document-item__type">{{ ucwords(str_replace('_', ' ', $document->type)) }}</span>
         <span class="persona-document-item__number">
             @if($document->number)
-                •••• {{ substr($document->number, -4) }}
+                &bull;&bull;&bull;&bull; {{ substr($document->number, -4) }}
             @else
-                —
+                &mdash;
             @endif
         </span>
 

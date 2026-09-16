@@ -1,31 +1,14 @@
 <div class="persona-addresses-list" aria-label="{{ __('Addresses') }}">
-    @if ($addresses->isEmpty())
-        <p class="persona-addresses-list__empty">{{ __('No addresses yet.') }}</p>
+    @if($addresses->isEmpty())
+        @include('persona-blade::components.profile.empty-state', [
+            'title' => __('No addresses yet'),
+            'text'  => __('Add a residence, shipping, or billing address when available.'),
+        ])
     @else
         <ul class="persona-addresses-list__items">
-            @foreach ($addresses as $address)
-                <li class="persona-address-item">
-                    <span class="persona-address-item__line1">{{ $address->line_1 }}</span>
-                    @if ($address->line_2)
-                        <span class="persona-address-item__line2">{{ $address->line_2 }}</span>
-                    @endif
-                    @php
-                        $locality = collect([
-                            $address->city,
-                            $address->state,
-                            $address->country_code,
-                            $address->zip_code,
-                        ])->filter()->implode(', ');
-                    @endphp
-                    @if ($locality)
-                        <span class="persona-address-item__locality">{{ $locality }}</span>
-                    @endif
-                    <span class="persona-address-item__meta">
-                        <span class="persona-address-item__type">{{ $address->type }}</span>
-                        @if ($address->is_primary)
-                            <span class="persona-address-badge persona-address-badge--primary">{{ __('primary') }}</span>
-                        @endif
-                    </span>
+            @foreach($addresses as $address)
+                <li class="persona-addresses-list__item">
+                    @include('persona-blade::components.profile.address-item', ['address' => $address])
                 </li>
             @endforeach
         </ul>

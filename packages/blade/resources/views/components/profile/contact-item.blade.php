@@ -1,4 +1,4 @@
-@props(['contact' => null])
+{{-- Single contact card. Variables: $contact. --}}
 @php
     $canCall  = $contact->type === 'phone';
     $canEmail = $contact->type === 'email';

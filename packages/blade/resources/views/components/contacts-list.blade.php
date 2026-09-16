@@ -1,23 +1,14 @@
 <div class="persona-contacts-list" aria-label="{{ __('Contacts') }}">
-    @if ($contacts->isEmpty())
-        <p class="persona-contacts-list__empty">{{ __('No contacts yet.') }}</p>
+    @if($contacts->isEmpty())
+        @include('persona-blade::components.profile.empty-state', [
+            'title' => __('No contacts yet'),
+            'text'  => __('Add an email or phone number when available.'),
+        ])
     @else
         <ul class="persona-contacts-list__items">
-            @foreach ($contacts as $contact)
-                <li class="persona-contact-item">
-                    <span class="persona-contact-item__value">{{ $contact->value }}</span>
-                    <span class="persona-contact-item__type">{{ $contact->type }}</span>
-                    <span class="persona-contact-item__badges">
-                        @if ($contact->is_primary)
-                            <span class="persona-contact-badge persona-contact-badge--primary">{{ __('primary') }}</span>
-                        @endif
-                        @if ($contact->is_verified)
-                            <span class="persona-contact-badge persona-contact-badge--verified">{{ __('verified') }}</span>
-                        @endif
-                        @if ($contact->is_emergency)
-                            <span class="persona-contact-badge persona-contact-badge--emergency">{{ __('emergency') }}</span>
-                        @endif
-                    </span>
+            @foreach($contacts as $contact)
+                <li class="persona-contacts-list__item">
+                    @include('persona-blade::components.profile.contact-item', ['contact' => $contact])
                 </li>
             @endforeach
         </ul>

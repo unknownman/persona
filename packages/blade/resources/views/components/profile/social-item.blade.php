@@ -1,4 +1,4 @@
-@props(['account' => null, 'activities' => []])
+{{-- Single social account badge. Variables: $account, $activities (array). --}}
 @php
     $handle = \Illuminate\Support\Str::startsWith($account->username, '@')
         ? $account->username

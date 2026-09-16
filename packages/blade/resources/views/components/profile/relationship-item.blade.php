@@ -1,4 +1,4 @@
-@props(['relationship' => null, 'counterpart' => null, 'incoming' => false])
+{{-- Single relationship chip. Variables: $relationship, $counterpart, $incoming. --}}
 @php
     $relation = $incoming ? 'incoming' : 'outgoing';
 

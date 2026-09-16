@@ -1,4 +1,4 @@
-@props(['address' => null])
+{{-- Single address card. Variables: $address. --}}
 @php
     $locality = trim(collect([
         $address->city,

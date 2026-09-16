@@ -5,6 +5,7 @@ namespace Persona\Livewire\Http\Livewire;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Str;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Locked;
 use Livewire\Component;
@@ -185,6 +186,6 @@ class ProfileOverview extends Component
         $first = $this->footprint['profile']?->first_name ?? '';
         $last  = $this->footprint['profile']?->last_name ?? '';
 
-        return strtoupper($first[0] ?? '') . strtoupper($last[0] ?? '');
+        return mb_strtoupper(Str::substr($first, 0, 1) . Str::substr($last, 0, 1));
     }
 }

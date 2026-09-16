@@ -7,35 +7,18 @@
 import { ref } from 'vue';
 import type { CreateSocialAccountInput, SocialPlatform } from '../../types/persona';
 
-const props = withDefaults(
-  defineProps<{
+const props = defineProps<{
     /** Disables the form while a mutation is in flight upstream. */
     busy?: boolean;
     /** Override the list of platforms shown in the dropdown. */
-    platformOptions?: readonly SocialPlatform[];
-  }>(),
-  {
-    busy: false,
-    platformOptions: () => [
-      'twitter',
-      'linkedin',
-      'github',
-      'facebook',
-      'instagram',
-      'youtube',
-      'tiktok',
-      'mastodon',
-      'discord',
-      'threads',
-    ],
-  },
-);
+    platformOptions: readonly SocialPlatform[];
+  }>();
 
 const emit = defineEmits<{
   submit: [payload: CreateSocialAccountInput];
 }>();
 
-const platform = ref<SocialPlatform>(props.platformOptions[0]);
+const platform = ref<SocialPlatform>(props.platformOptions[0] || '');
 const username = ref('');
 const url = ref('');
 const isPrimary = ref(false);

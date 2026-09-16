@@ -7,33 +7,18 @@
 import { ref } from 'vue';
 import type { CreateDocumentInput, DocumentType } from '../../types/persona';
 
-const props = withDefaults(
-  defineProps<{
+const props = defineProps<{
     /** Disables the form while a mutation is in flight upstream. */
     busy?: boolean;
     /** Override the list of types shown in the dropdown. */
-    typeOptions?: readonly DocumentType[];
-  }>(),
-  {
-    busy: false,
-    typeOptions: () => [
-      'passport',
-      'national_id',
-      'driving_license',
-      'birth_certificate',
-      'residence_permit',
-      'visa',
-      'tax_id',
-      'social_security',
-    ],
-  },
-);
+    typeOptions: readonly DocumentType[];
+  }>();
 
 const emit = defineEmits<{
   submit: [payload: CreateDocumentInput];
 }>();
 
-const type = ref<DocumentType>(props.typeOptions[0]);
+const type = ref<DocumentType>(props.typeOptions[0] || '');
 const number = ref('');
 const countryCode = ref('');
 const issuedAt = ref('');

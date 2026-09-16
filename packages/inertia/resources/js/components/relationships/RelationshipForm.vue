@@ -9,37 +9,18 @@ import { ref } from 'vue';
 import type { CreateRelationshipInput } from '../../composables/useRelationships';
 import type { RelationshipType } from '../../types/persona';
 
-const props = withDefaults(
-  defineProps<{
+const props = defineProps<{
     /** Disables the form while a mutation is in flight upstream. */
     busy?: boolean;
     /** Override the list of relationship types shown in the dropdown. */
-    typeOptions?: readonly RelationshipType[];
-  }>(),
-  {
-    busy: false,
-    typeOptions: () => [
-      'parent',
-      'child',
-      'guardian',
-      'dependent',
-      'employer',
-      'employee',
-      'spouse',
-      'sibling',
-      'friend',
-      'partner',
-      'relative',
-      'colleague',
-    ],
-  },
-);
+    typeOptions: readonly RelationshipType[];
+  }>();
 
 const emit = defineEmits<{
   submit: [payload: CreateRelationshipInput];
 }>();
 
-const type = ref<RelationshipType>(props.typeOptions[0]);
+const type = ref<RelationshipType>(props.typeOptions[0] || '');
 const relatedType = ref('');
 const relatedId = ref<string>('');
 

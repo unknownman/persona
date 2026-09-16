@@ -12,6 +12,7 @@ use Livewire\Component;
 use Persona\Managers\PersonaManager;
 use Persona\Models\Contact;
 use Persona\Rules\PersonaUniqueContactValue;
+use Persona\Rules\ValidPersonaConfigValue;
 
 class ContactManager extends Component
 {
@@ -21,8 +22,8 @@ class ContactManager extends Component
     #[Locked]
     public int|string $personableId;
 
-    #[Validate('required|string', as: 'type')]
-    public string $type = 'email';
+    #[Validate(['required', 'string'], as: 'type')]
+    public string $type = '';
 
     #[Validate(['required', 'string', 'max:255'], as: 'value')]
     public string $value = '';
@@ -55,6 +56,14 @@ class ContactManager extends Component
             $this->personableType = (string) $personableType;
             $this->personableId = $personableId;
         }
+
+        $this->type = collect($this->availableTypes())->first() ?? '';
+    }
+
+    #[Computed]
+    public function availableTypes(): array
+    {
+        return array_keys(config('persona.normalizers', []));
     }
 
     /**
@@ -84,7 +93,7 @@ class ContactManager extends Component
         $personable = $this->personable();
 
         $this->validate([
-            'type' => ['required', 'string'],
+            'type' => ['required', 'string', new ValidPersonaConfigValue('persona.normalizers')],
             'value' => ['required', 'string', 'max:255', new PersonaUniqueContactValue($this->type, $personable)],
         ]);
 

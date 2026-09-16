@@ -17,6 +17,7 @@ use Persona\Models\Document;
 use Persona\Models\Relationship;
 use Persona\Models\SocialAccount;
 use Persona\Persona;
+use Persona\Rules\ValidPersonaConfigValue;
 
 /**
  * Publishable Inertia controller for the Persona ecosystem.
@@ -164,6 +165,13 @@ class PersonaController extends Controller
                 'personable_type' => $personable->getMorphClass(),
                 'personable_id'   => $personable->getKey(),
             ],
+            'vocabularies' => [
+                'contact_types' => array_keys(config('persona.normalizers', [])),
+                'document_types' => config('persona.document_types', []),
+                'address_types' => config('persona.address_types', []),
+                'social_platforms' => config('persona.social_platforms', []),
+                'relationship_types' => array_merge(config('persona.relationships.directed', []), config('persona.relationships.symmetric', [])),
+            ],
         ]);
     }
 
@@ -174,7 +182,7 @@ class PersonaController extends Controller
     public function storeContact(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'type' => ['required', 'string'],
+            'type' => ['required', 'string', new ValidPersonaConfigValue('persona.normalizers')],
             'value' => ['required', 'string', 'max:255'],
             'is_primary' => ['sometimes', 'boolean'],
             'is_emergency' => ['sometimes', 'boolean'],
@@ -223,7 +231,7 @@ class PersonaController extends Controller
     public function storeAddress(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'type' => ['required', 'string', 'max:100'],
+            'type' => ['required', 'string', new ValidPersonaConfigValue('persona.address_types')],
             'line_1' => ['required', 'string', 'max:255'],
             'line_2' => ['sometimes', 'nullable', 'string', 'max:255'],
             'city' => ['sometimes', 'nullable', 'string', 'max:255'],
@@ -278,10 +286,8 @@ class PersonaController extends Controller
 
     public function storeSocialAccount(Request $request): RedirectResponse
     {
-        $socialPlatforms = config('persona.social_platforms', []);
-
         $validated = $request->validate([
-            'platform' => ['required', 'string', Rule::in($socialPlatforms)],
+            'platform' => ['required', 'string', new ValidPersonaConfigValue('persona.social_platforms')],
             'username' => ['required', 'string', 'max:255'],
             'url' => ['sometimes', 'nullable', 'url', 'max:2048'],
             'is_primary' => ['sometimes', 'boolean'],
@@ -327,10 +333,8 @@ class PersonaController extends Controller
 
     public function storeDocument(Request $request): RedirectResponse
     {
-        $documentTypes = config('persona.document_types', []);
-
         $validated = $request->validate([
-            'type' => ['required', 'string', Rule::in($documentTypes)],
+            'type' => ['required', 'string', new ValidPersonaConfigValue('persona.document_types')],
             'number' => ['required', 'string', 'max:255'],
             'country_code' => ['sometimes', 'nullable', 'string', 'max:2'],
             'issued_at' => ['sometimes', 'nullable', 'date'],
@@ -362,8 +366,12 @@ class PersonaController extends Controller
             'side' => ['sometimes', 'nullable', 'string', Rule::in('front', 'back')],
         ]);
 
-        $storedPath = $request->file('file')->store(
-            'persona/documents/' . $document->id,
+        $generator = app(\Persona\Contracts\DocumentPathGeneratorContract::class);
+        $path = $generator->generate($document, $request->file('file'));
+
+        $storedPath = $request->file('file')->storeAs(
+            dirname($path),
+            basename($path),
             $validated['disk'] ?? config('persona.storage.disk', 'local'),
         );
 

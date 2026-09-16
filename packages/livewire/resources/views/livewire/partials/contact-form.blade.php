@@ -2,9 +2,9 @@
     <div class="persona-contacts__field">
         <label class="persona-contacts__label" for="persona-type">{{ __('Type') }}</label>
         <select id="persona-type" class="persona-contacts__input" wire:model="type">
-            <option value="email">{{ __('Email') }}</option>
-            <option value="phone">{{ __('Phone') }}</option>
-            <option value="handle">{{ __('Handle') }}</option>
+            @foreach($this->availableTypes as $typeOption)
+                <option value="{{ $typeOption }}">{{ __(ucfirst($typeOption)) }}</option>
+            @endforeach
         </select>
     </div>
 

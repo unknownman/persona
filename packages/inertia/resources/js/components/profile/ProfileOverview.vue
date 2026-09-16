@@ -37,12 +37,13 @@ export interface PersonableBag {
   legal_detail: LegalDetail | null;
 }
 
-const { personable, relationships, socialActivities, personaScope } = defineProps<{
+const { personable, relationships, socialActivities, personaScope, vocabularies } = defineProps<{
   personable: PersonableBag;
   relationships: Relationship[];
   /** Resolved activity per social account id (from the backend resolver). */
   socialActivities?: Record<string, SocialActivity[]>;
   personaScope: PersonableScope;
+  vocabularies: Record<string, string[]>;
 }>();
 </script>
 
@@ -52,24 +53,29 @@ const { personable, relationships, socialActivities, personaScope } = defineProp
     <ProfileContacts
       v-if="personable.contacts.length"
       :contacts="personable.contacts"
+      :type-options="vocabularies.contact_types"
     />
     <ProfileAddresses
       v-if="personable.addresses.length"
       :addresses="personable.addresses"
+      :type-options="vocabularies.address_types"
     />
     <ProfileDocuments
       v-if="personable.documents.length"
       :documents="personable.documents"
+      :type-options="vocabularies.document_types"
     />
     <ProfileSocials
       v-if="personable.social_accounts.length"
       :accounts="personable.social_accounts"
       :activities="socialActivities ?? {}"
+      :platform-options="vocabularies.social_platforms"
     />
     <ProfileRelationships
       v-if="relationships.length"
       :relationships="relationships"
       :persona-scope="personaScope"
+      :type-options="vocabularies.relationship_types"
     />
     <ProfileAttributes
       :physical="personable.physical_attribute"

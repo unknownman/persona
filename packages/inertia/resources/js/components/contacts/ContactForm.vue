@@ -8,27 +8,20 @@
 import { ref } from 'vue';
 import type { ContactType, CreateContactInput } from '../../types/persona';
 
-const props = withDefaults(
-  defineProps<{
+const props = defineProps<{
     /** Disables the form while a mutation is in flight upstream. */
     busy?: boolean;
     /**
-     * Override the list of types shown in the dropdown. Defaults to
-     * email / phone / handle / username.
+     * Override the list of types shown in the dropdown.
      */
-    typeOptions?: readonly ContactType[];
-  }>(),
-  {
-    busy: false,
-    typeOptions: () => ['email', 'phone', 'handle', 'username'],
-  },
-);
+    typeOptions: readonly ContactType[];
+  }>();
 
 const emit = defineEmits<{
   submit: [payload: CreateContactInput];
 }>();
 
-const type = ref<ContactType>(props.typeOptions[0]);
+const type = ref<ContactType>(props.typeOptions[0] || '');
 const value = ref('');
 const isPrimary = ref(false);
 const isEmergency = ref(false);

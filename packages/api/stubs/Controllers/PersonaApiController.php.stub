@@ -25,6 +25,7 @@ use Persona\Models\Profile;
 use Persona\Models\Relationship;
 use Persona\Models\SocialAccount;
 use Persona\Persona;
+use Persona\Rules\ValidPersonaConfigValue;
 
 /**
  * Publishable API controller for the Persona ecosystem.
@@ -213,7 +214,7 @@ class PersonaApiController extends Controller
     public function addContact(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'type' => ['required', Rule::in('email', 'phone', 'handle')],
+            'type' => ['required', 'string', new ValidPersonaConfigValue('persona.normalizers')],
             'value' => ['required', 'string', 'max:255'],
             'is_primary' => ['sometimes', 'boolean'],
             'is_emergency' => ['sometimes', 'boolean'],
@@ -309,7 +310,7 @@ class PersonaApiController extends Controller
     public function storeAddress(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'type' => ['required', 'string', 'max:100'],
+            'type' => ['required', 'string', new ValidPersonaConfigValue('persona.address_types')],
             'line_1' => ['required', 'string', 'max:255'],
             'line_2' => ['sometimes', 'nullable', 'string', 'max:255'],
             'city' => ['sometimes', 'nullable', 'string', 'max:255'],
@@ -371,10 +372,8 @@ class PersonaApiController extends Controller
 
     public function storeSocialAccount(Request $request): JsonResponse
     {
-        $socialPlatforms = config('persona.social_platforms', []);
-
         $validated = $request->validate([
-            'platform' => ['required', 'string', Rule::in($socialPlatforms)],
+            'platform' => ['required', 'string', new ValidPersonaConfigValue('persona.social_platforms')],
             'username' => ['required', 'string', 'max:255'],
             'url' => ['sometimes', 'nullable', 'url', 'max:2048'],
             'is_primary' => ['sometimes', 'boolean'],
@@ -431,10 +430,8 @@ class PersonaApiController extends Controller
 
     public function storeDocument(Request $request): JsonResponse
     {
-        $documentTypes = config('persona.document_types', []);
-
         $validated = $request->validate([
-            'type' => ['required', 'string', Rule::in($documentTypes)],
+            'type' => ['required', 'string', new ValidPersonaConfigValue('persona.document_types')],
             'number' => ['required', 'string', 'max:255'],
             'country_code' => ['sometimes', 'nullable', 'string', 'max:2'],
             'issued_at' => ['sometimes', 'nullable', 'date'],
@@ -479,8 +476,12 @@ class PersonaApiController extends Controller
             'side' => ['sometimes', 'nullable', 'string', Rule::in('front', 'back')],
         ]);
 
-        $storedPath = $request->file('file')->store(
-            'persona/documents/' . $document->id,
+        $generator = app(\Persona\Contracts\DocumentPathGeneratorContract::class);
+        $path = $generator->generate($document, $request->file('file'));
+
+        $storedPath = $request->file('file')->storeAs(
+            dirname($path),
+            basename($path),
             $validated['disk'] ?? config('persona.storage.disk', 'local'),
         );
 

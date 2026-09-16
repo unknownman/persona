@@ -7,27 +7,20 @@
 import { ref } from 'vue';
 import type { AddressType, CreateAddressInput } from '../../types/persona';
 
-const props = withDefaults(
-  defineProps<{
+const props = defineProps<{
     /** Disables the form while a mutation is in flight upstream. */
     busy?: boolean;
     /**
-     * Override the list of types shown in the dropdown. Defaults to the
-     * standard Persona address vocabulary (home / work / billing / ...).
+     * Override the list of types shown in the dropdown.
      */
-    typeOptions?: readonly AddressType[];
-  }>(),
-  {
-    busy: false,
-    typeOptions: () => ['home', 'work', 'billing', 'shipping', 'mailing', 'temporary', 'permanent'],
-  },
-);
+    typeOptions: readonly AddressType[];
+  }>();
 
 const emit = defineEmits<{
   submit: [payload: CreateAddressInput];
 }>();
 
-const type = ref<AddressType>(props.typeOptions[0]);
+const type = ref<AddressType>(props.typeOptions[0] || '');
 const line1 = ref('');
 const line2 = ref('');
 const city = ref('');

@@ -151,6 +151,70 @@ If you need to implement a "Delete My Account" or a right-to-be-forgotten featur
 $user->persona()->forgetAll();
 ```
 
+### Data Cleanup & Orphaned Records
+
+Persona rows attach to their owner through a **polymorphic morph pair** (`personable_type` / `personable_id`). Because the target table is unknown at the schema level, the database **cannot enforce a foreign key** — nothing stops a persona row from outliving the User, Customer, or Employee it belonged to. Persona mitigates this structural RDBMS limitation at two layers:
+
+**Automated cleanup on Eloquent deletion.** The `HasPersona` trait registers a `deleting` hook that wipes the full Persona footprint whenever the owner is truly removed:
+
+```php
+$user->delete();
+```
+
+For models using the `SoftDeletes` trait there is a deliberate difference:
+
+| Call | Behavior |
+| --- | --- |
+| `$user->delete()` | **Soft delete.** The row is flagged `deleted_at` and still exists, so Persona data is **preserved** and restored together with the model. |
+| `$user->forceDelete()` | **Hard delete.** The row is removed for real, so the Persona footprint is **wiped automatically**. |
+
+**Sweeping hard orphans with artisan.** Model events only cover graceful deletes. Owners can still disappear through mass `Model::where(...)->delete()` queries, DB-level cascades, or raw SQL. The built-in sweeper removes rows whose polymorphic parent no longer exists:
+
+```bash
+php artisan persona:clean-orphans
+php artisan persona:clean-orphans --pretend   # preview only, delete nothing
+```
+
+The sweeper is **enterprise-ready**: instead of one massive `DELETE`, it collects orphaned rows as ascending IDs and deletes them in **batches of 1,000** (`persona.cleanup.chunk_size`, or the `--chunk` option), so table locks stay short-lived and memory stays flat even on tables with millions of orphans:
+
+```bash
+php artisan persona:clean-orphans --chunk=2500
+```
+
+It resolves each distinct `personable_type` to its backing table, sweeps both sides of `persona_relationships`, and spares soft-deleted parents. Schedule it nightly from `routes/console.php`:
+
+```php
+Schedule::command('persona:clean-orphans')->dailyAt('03:00');
+```
+
+### Preserving Data on Deletion
+
+Sometimes a deleted entity's Persona data must live on — audit trails, compliance, or reassigning a profile to a future record. Deleting a Customer or Employee is not always a request to forget everything about them.
+
+Opt out of the automatic wipe **per model** with a single expressive property:
+
+```php
+use Persona\Traits\HasPersona;
+
+class Customer extends Model
+{
+    use HasPersona;
+
+    // Retain Persona data even if the Customer record is deleted
+    public bool $preservePersonaOnDelete = true;
+}
+```
+
+With this flag set:
+
+- `$customer->delete()` and `$customer->forceDelete()` leave every profile, contact, address, document, and relationship **intact** in the database. You can later re-attach the data to a fresh record by creating it and assigning the old `personable_id`.
+- The `persona:clean-orphans` sweeper **respects the flag too** — it discovers the host model for each distinct `personable_type`, and when preservation is enabled it skips that type entirely:
+  ```bash
+  php artisan persona:clean-orphans
+  # Skipping [Customer] (Preservation enabled)
+  ```
+- Alternatively, provide a `preservePersonaOnDelete()` method for dynamic, runtime decisions (e.g. retaining data only for legal entities). Preservation is enabled whenever **either** the property or the method returns `true`.
+
 ## License
 
 Laravel Persona is open-sourced software licensed under the [MIT license](LICENSE.md).

@@ -37,7 +37,12 @@ export interface Profile extends Personable {
 export interface Contact extends Personable {
   id: PersonaId;
   type: ContactType;
-  /** Decrypted contact value. The lookup hash is never exposed. */
+  /**
+   * Contact value, MASKED by default via `PersonaPolicy@viewSensitive`
+   * (e.g. `a***@example.com` for email, `****5678` for phone). The raw
+   * decrypted value is only returned to the authorized owner. The lookup
+   * hash is never exposed.
+   */
   value: string;
   is_primary: boolean;
   is_verified: boolean;
@@ -67,7 +72,11 @@ export interface Address extends Personable {
 export interface Document extends Personable {
   id: PersonaId;
   type: DocumentType;
-  /** Decrypted document number. The lookup hash is never exposed. */
+  /**
+   * Document number, MASKED by default via `PersonaPolicy@viewSensitive`
+   * (e.g. `****1234`). The raw decrypted number is only returned to the
+   * authorized owner. The lookup hash is never exposed.
+   */
   number: string;
   country_code: string | null;
   issued_at: string | null;
@@ -133,7 +142,11 @@ export interface LegalDetail extends Personable {
   id: PersonaId;
   nationality: string | null;
   marital_status: string | null;
-  /** Decrypted tax identifier. The lookup hash is never exposed. */
+  /**
+   * Tax identifier, MASKED by default via `PersonaPolicy@viewSensitive`
+   * (e.g. `****1234`). The raw decrypted identifier is only returned to the
+   * authorized owner. The lookup hash is never exposed.
+   */
   tax_id: string | null;
   created_at: string | null;
   updated_at: string | null;

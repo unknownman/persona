@@ -2,9 +2,7 @@
 <header class="persona-profile__header">
     <span class="persona-profile__avatar" aria-hidden="true">
         @php
-            $avatarUrl = $profile
-                ? ($profile->avatar_url ?? app(\Persona\Contracts\AvatarResolverContract::class)->getAvatarUrl($profile))
-                : null;
+            $avatarUrl = $profile?->avatar_url;
         @endphp
         @if($avatarUrl)
             <img src="{{ $avatarUrl }}" alt="Avatar" class="persona-profile__avatar-img">

@@ -578,7 +578,7 @@ class PersonaApiController extends Controller
     public function storeRelationship(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'related_type' => ['required', 'string'],
+            'related_type' => ['required', 'string', Rule::in(config('persona.allowed_relationship_morphs', []))],
             'related_id' => ['required', 'integer'],
             'type' => ['required', 'string', 'max:100'],
         ]);

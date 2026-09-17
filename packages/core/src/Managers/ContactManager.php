@@ -21,6 +21,9 @@ use Persona\Support\PersonaNormalizer;
 
 class ContactManager
 {
+    public function __construct(
+        protected ContactDriverManager $driverManager
+    ) {}
 
     /**
      * Add a contact value for a personable model.
@@ -43,7 +46,8 @@ class ContactManager
     ): Contact {
         $this->assertAllowedType($type);
 
-        $value = PersonaNormalizer::resolve($type, $value);
+        $driver = $this->driverManager->driver($type);
+        $value = $driver->normalize($value);
 
         return DB::transaction(function () use ($personable, $type, $value, $isPrimary, $isEmergency) {
             // The unique index is (personable_type, personable_id, type,
@@ -195,7 +199,8 @@ class ContactManager
         $this->assertOwnership($personable, $contact);
 
         $oldValue = (string) $contact->value;
-        $newValue = PersonaNormalizer::resolve((string) $contact->type, $newValue);
+        $driver = $this->driverManager->driver((string) $contact->type);
+        $newValue = $driver->normalize($newValue);
 
         return DB::transaction(function () use ($personable, $contact, $oldValue, $newValue) {
             // A previously trashed twin (same personable, type and value_hash)
@@ -268,41 +273,11 @@ class ContactManager
     {
         $this->assertOwnership($personable, $contact);
 
-        $length = (int) config('persona.otp.length', 6);
-        $otp = str_pad((string) random_int(0, (10 ** $length) - 1), $length, '0', STR_PAD_LEFT);
-        $ttl = (int) config('persona.otp.ttl', 600);
-
-        $contactKey = $contact->getKey();
-
-        Cache::put(
-            "persona:otp:{$contactKey}",
-            $otp,
-            Carbon::now()->addSeconds($ttl)
-        );
-
-        // A fresh OTP grants a fresh set of attempts.
-        RateLimiter::clear("persona:otp_attempts:{$contactKey}");
-
-        $route = $contact->type === 'email'
-            ? 'mail'
-            : (string) config('persona.otp.sms_channel', 'vonage');
-
-        $notification = isset(Persona::$verifyContactNotificationCallback)
-            ? call_user_func(Persona::$verifyContactNotificationCallback, $contact, $otp)
-            : new VerifyContactNotification($otp, null, [$route]);
-
-        Notification::route($route, $contact->value)->notify($notification);
-
-        return $otp;
+        return $this->driverManager->driver($contact->type)->sendVerification($personable, $contact);
     }
 
     /**
-     * Verify an OTP against the cache and mark the contact as verified.
-     *
-     * The comparison is timing-safe. Failed attempts are throttled with the
-     * RateLimiter (robust on every cache driver, including Laravel 11+`s
-     * default `database` store) and the OTP is locked after the
-     * `persona.otp.max_attempts` configured number of consecutive failures.
+     * Verify an OTP and mark the contact as verified.
      *
      * @throws \InvalidArgumentException  When the contact does not belong to the given entity.
      */
@@ -310,36 +285,7 @@ class ContactManager
     {
         $this->assertOwnership($personable, $contact);
 
-        $key = "persona:otp:{$contact->getKey()}";
-        // NOTE: deliberately distinct from the OTP value key above — using the
-        // same key for RateLimiter::hit() would overwrite the stored OTP.
-        $rateKey = "persona:otp_attempts:{$contact->getKey()}";
-        $maxAttempts = (int) config('persona.otp.max_attempts', 5);
-        $ttl = (int) config('persona.otp.ttl', 600);
-
-        if (RateLimiter::tooManyAttempts($rateKey, $maxAttempts)) {
-            return false;
-        }
-
-        $cachedOtp = Cache::get($key);
-
-        if ($cachedOtp === null || ! hash_equals((string) $cachedOtp, (string) $otp)) {
-            RateLimiter::hit($rateKey, $ttl);
-
-            return false;
-        }
-
-        Cache::forget($key);
-        RateLimiter::clear($rateKey);
-
-        $contact->update([
-            'is_verified' => true,
-            'verified_at' => Carbon::now(),
-        ]);
-
-        ContactVerified::dispatch($contact);
-
-        return true;
+        return $this->driverManager->driver($contact->type)->verify($personable, $contact, $otp);
     }
 
     /**
